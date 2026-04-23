@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <meta name="description" content="Prototipo Web NFC/RFID – Lee y escribe tarjetas NFC desde tu móvil Android con Chrome." />
-  <title>NFC Toolkit – Leer &amp; Escribir Tarjetas</title>
+  <meta name="description" content="Prototipo Web NFC &amp; RFID – Lee y escribe tarjetas NFC/RFID (HF 13.56 MHz) desde tu móvil Android con Chrome y la Web NFC API." />
+  <title>NFC &amp; RFID Toolkit – Leer &amp; Escribir Tarjetas</title>
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -23,9 +23,9 @@
     <div class="header-inner">
       <div class="logo">
         <span class="logo-icon"><i data-lucide="radio"></i></span>
-        <span class="logo-text">NFC<strong>Toolkit</strong></span>
+        <span class="logo-text">NFC &amp; RFID<strong> Toolkit</strong></span>
       </div>
-      <div id="nfc-badge" class="badge badge--checking">
+      <div id="nfc-badge" class="badge badge--checking" title="Estado de la Web NFC API (requerida para NFC y RFID HF)">
         <span class="badge-dot"></span>
         <span id="nfc-badge-label">Verificando NFC…</span>
       </div>
@@ -51,7 +51,7 @@
     <!-- ── PANEL: ESCRIBIR ───────────────────────────────── -->
     <section id="panel-write" class="panel panel--active" role="tabpanel">
       <div class="card">
-        <h2 class="card-title"><i data-lucide="tag"></i> Datos para la tarjeta</h2>
+        <h2 class="card-title"><i data-lucide="tag"></i> Datos para la tarjeta NFC / RFID</h2>
 
         <form id="write-form" novalidate>
           <!-- Preset tipo -->
@@ -59,6 +59,7 @@
             <label for="preset-select">Plantilla rápida</label>
             <select id="preset-select" onchange="applyPreset(this.value)">
               <option value="">— Ninguna —</option>
+              <option value="rfid-id">🏷️ RFID ID (solo lectura)</option>
               <option value="url">🔗 URL</option>
               <option value="vcard">👤 vCard (contacto)</option>
               <option value="text">📝 Texto libre</option>
@@ -68,7 +69,7 @@
 
           <!-- Payload -->
           <div class="field">
-            <label for="payload-input">Contenido <span class="label-hint">(NTAG213 · máx 144 bytes)</span></label>
+            <label for="payload-input">Contenido <span class="label-hint">(NTAG213/RFID HF · máx 144 bytes NDEF)</span></label>
             <textarea
               id="payload-input"
               rows="5"
@@ -115,7 +116,7 @@
     <section id="panel-read" class="panel" role="tabpanel">
       <div class="card">
         <h2 class="card-title"><i data-lucide="scan-line"></i> Escanear tarjeta</h2>
-        <p class="card-desc">Acerca tu teléfono a una tarjeta NFC NDEF para leer su contenido.</p>
+        <p class="card-desc">Acerca tu teléfono a una tarjeta <strong>NFC o RFID HF (13.56 MHz)</strong> con formato NDEF para leer su contenido.</p>
 
         <button id="btn-scan" class="btn btn--secondary btn--full" onclick="startScan()">
           <i data-lucide="wifi"></i> Iniciar escaneo
@@ -138,10 +139,21 @@
         </div>
       </div>
 
+      <!-- Info RFID -->
+      <div class="rfid-info-card">
+        <div class="rfid-info-header"><i data-lucide="cpu"></i> Compatibilidad RFID</div>
+        <ul class="rfid-list">
+          <li><span class="tag tag--ok">✓ Soportado</span> RFID HF 13.56 MHz (ISO 14443-A/B, ISO 15693) con formato NDEF</li>
+          <li><span class="tag tag--ok">✓ Soportado</span> NTAG213 / 215 / 216, MIFARE Ultralight, Type 4 Tag</li>
+          <li><span class="tag tag--no">✗ No soportado</span> RFID LF 125 kHz (EM4100, HID Prox) — sin acceso web</li>
+          <li><span class="tag tag--no">✗ No soportado</span> MIFARE Classic (cifrado propietario)</li>
+        </ul>
+      </div>
+
       <!-- Fallback: simulador -->
       <div id="sim-card" class="sim-card">
-        <div class="sim-header"><i data-lucide="flask-conical"></i> Simulador (sin NFC físico)</div>
-        <p class="sim-desc">Ingresa texto para simular la lectura de una tarjeta.</p>
+        <div class="sim-header"><i data-lucide="flask-conical"></i> Simulador (sin NFC/RFID físico)</div>
+        <p class="sim-desc">Ingresa texto para simular la lectura de una tarjeta NFC o RFID.</p>
         <div class="field">
           <input id="sim-input" type="text" placeholder="Simular contenido NFC…" />
         </div>
@@ -187,11 +199,12 @@
   <div id="nfc-overlay" class="overlay overlay--hidden">
     <div class="overlay-card">
       <i data-lucide="smartphone-nfc" class="overlay-icon"></i>
-      <h3>NFC no disponible</h3>
+      <h3>NFC / RFID no disponible</h3>
       <p>Tu dispositivo o navegador no soporta la <strong>Web NFC API</strong>.<br>
+         Necesaria para leer/escribir NFC <em>y</em> RFID HF 13.56 MHz.<br>
          Requisitos: <em>Chrome 89+ en Android</em>.</p>
       <ul class="compat-list">
-        <li><i data-lucide="check"></i> Chrome ≥ 89 en Android</li>
+        <li><i data-lucide="check"></i> Chrome ≥ 89 en Android (NFC + RFID HF)</li>
         <li><i data-lucide="x"></i> iOS / Safari (no soportado)</li>
         <li><i data-lucide="x"></i> Chrome en escritorio (no soportado)</li>
       </ul>

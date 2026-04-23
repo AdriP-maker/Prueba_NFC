@@ -26,6 +26,8 @@
   --warning:      #fbbf24;
   --danger:       #f87171;
   --danger-dim:   rgba(248, 113, 113, 0.15);
+  --rfid:         #a78bfa;
+  --rfid-dim:     rgba(167, 139, 250, 0.12);
 
   /* Texto */
   --text-primary:   #e2e8f0;
@@ -554,6 +556,51 @@ body {
   color: var(--accent);
   width: 28px; height: 28px;
 }
+
+/* ── RFID INFO CARD ──────────────────── */
+.rfid-info-card {
+  background: linear-gradient(135deg, rgba(167, 139, 250, 0.07), rgba(56, 189, 248, 0.04));
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  border-radius: var(--r-lg);
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+.rfid-info-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.84rem;
+  color: #a78bfa;
+  margin-bottom: 12px;
+}
+.rfid-info-header svg { width: 15px; height: 15px; }
+.rfid-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rfid-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tag--ok  { background: var(--success-dim); color: var(--success); border: 1px solid var(--success); }
+.tag--no  { background: var(--danger-dim);  color: var(--danger);  border: 1px solid var(--danger); }
 
 /* ── SCROLLBAR ───────────────────────── */
 ::-webkit-scrollbar { width: 4px; }

@@ -1,4 +1,4 @@
-# 📡 NFC Toolkit — Prototipo Web RFID/NFC
+# 📡 NFC & RFID Toolkit — Prototipo Web RFID/NFC
 
 Prototipo web para **leer y escribir tarjetas NFC/RFID** desde un teléfono Android usando Chrome y la **Web NFC API** nativa. Sin backend, sin base de datos. 100% lado cliente.
 
@@ -8,8 +8,8 @@ Prototipo web para **leer y escribir tarjetas NFC/RFID** desde un teléfono Andr
 
 | Feature | Detalle |
 |---|---|
-| ✏️ **Escritura NFC** | Escribe texto, URLs o vCards en tarjetas NTAG213 (≤ 144 bytes) |
-| 📡 **Lectura NFC** | Escanea tarjetas y decodifica registros NDEF (texto, URL, MIME) |
+| ✏️ **Escritura NFC/RFID** | Escribe texto, URLs o vCards en tarjetas NTAG213 (≤ 144 bytes) |
+| 📡 **Lectura NFC/RFID** | Escanea tarjetas y decodifica registros NDEF (texto, URL, MIME) |
 | 🔬 **Simulador** | Prueba la UI sin hardware NFC |
 | 📋 **Historial** | Persiste en `localStorage` automáticamente |
 | ☁️ **Export JSONBin** | Sube el historial a JSONBin.io sin backend |
@@ -34,7 +34,7 @@ cd nfc-toolkit
 
 # 3. Sube al repositorio
 git add .
-git commit -m "feat: prototipo NFC Toolkit inicial"
+git commit -m "feat: prototipo NFC & RFID Toolkit inicial"
 git remote add origin https://github.com/TU_USUARIO/nfc-toolkit.git
 git push -u origin main
 
@@ -81,7 +81,7 @@ git push origin gh-pages
 
 ---
 
-## 🏷️ Tipos de tarjeta soportados
+## 🏷️ Tipos de tarjeta soportados (HF 13.56 MHz)
 
 | Tipo | Capacidad NDEF | Formato |
 |---|---|---|
@@ -122,20 +122,21 @@ git push origin gh-pages
 3. **Sin acceso a UID en escritura**: La API no expone el UID de la tarjeta durante `write()`.
 4. **Tarjetas bloqueadas**: NTAG213 con OTP o páginas bloqueadas no se pueden sobreescribir.
 5. **Permisos por gesto de usuario**: El escaneo/escritura debe iniciarse desde un evento del usuario (tap/click), no automáticamente.
-6. **MIFARE Classic no soportado**: La API solo soporta tags NDEF (Type 2, 4, ISO-DEP). MIFARE Classic no es NDEF.
-7. **Límite de registros**: El prototipo escribe un solo registro NDEF por tarjeta.
+6. **MIFARE Classic no soportado**: La API solo soporta tags NDEF (Type 2, 4, ISO-DEP). MIFARE Classic usa criptografía propietaria, no estándar NDEF.
+7. **Solo RFID HF**: Web NFC opera únicamente en 13.56 MHz. Las tarjetas de acceso de 125 kHz (RFID LF) no son detectables por hardware de smartphones.
+8. **Límite de registros**: El prototipo escribe un solo registro NDEF por tarjeta.
 
 ---
 
 ## 🏗️ Estructura del Proyecto
 
 ```
-nfc-toolkit/
+nfc-rfid-toolkit/
 ├── index.html          ← Página única (SPA)
 ├── css/
 │   └── styles.css      ← Diseño móvil-first, dark mode
 ├── js/
-│   └── app.js          ← Lógica NFC + fallback + historial
+│   └── app.js          ← Lógica NFC/RFID + fallback + historial
 └── README.md
 ```
 

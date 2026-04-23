@@ -93,6 +93,11 @@ function applyPreset(preset) {
   const ta = document.getElementById('payload-input');
   const rt = document.getElementById('record-type');
   switch (preset) {
+    case 'rfid-id':
+      ta.value = 'ID:RFID-001\nTipo: NTAG213\nSector: Almacén A\nFecha: ' + new Date().toLocaleDateString('es-MX');
+      rt.value = 'text';
+      showToast('Plantilla RFID ID cargada (solo texto, no UID real)', '');
+      break;
     case 'url':
       ta.value = 'https://ejemplo.com';
       rt.value = 'url';
@@ -152,7 +157,7 @@ async function writeToNFC() {
   }
 
   // UI: estado "esperando"
-  setWriteStatus('pending', `<strong>✦ Esperando tarjeta NFC…</strong><br>Acerca el teléfono a la tarjeta NTAG213.`);
+  setWriteStatus('pending', `<strong>✦ Esperando tarjeta NFC/RFID…</strong><br>Acerca el teléfono a la tarjeta (NTAG213 o RFID HF 13.56 MHz).`);
   btnWrite.disabled = true;
 
   try {
@@ -172,8 +177,8 @@ async function writeToNFC() {
 
     await ndef.write({ records: [record] });
 
-    setWriteStatus('success', `<strong>✓ Tarjeta escrita correctamente</strong><br>${bytes} bytes grabados.`);
-    showToast('¡Tarjeta NFC escrita con éxito!', 'success');
+    setWriteStatus('success', `<strong>✓ Tarjeta NFC/RFID escrita correctamente</strong><br>${bytes} bytes grabados.`);
+    showToast('¡Tarjeta NFC/RFID escrita con éxito!', 'success');
     addToHistory({ type: 'write', data: payload, bytes });
 
   } catch (err) {
@@ -239,7 +244,7 @@ async function startScan() {
       </svg>`;
     btnStop.insertAdjacentElement('afterend', scanAnim);
 
-    showToast('Escaneo activo. Acerca una tarjeta NFC.');
+    showToast('Escaneo activo. Acerca una tarjeta NFC o RFID HF.');
 
   } catch (err) {
     const msg = parseNFCError(err);
@@ -279,7 +284,7 @@ function handleNDEFMessage(message, serialNumber) {
   const text = lines.join('\n');
   showReadResult(text);
   addToHistory({ type: 'read', data: text });
-  showToast('¡Tarjeta leída!', 'success');
+  showToast('¡Tarjeta NFC/RFID leída!', 'success');
 }
 
 function decodeNDEFRecord(record) {
@@ -344,9 +349,9 @@ function simulateRead() {
   const val = document.getElementById('sim-input').value.trim();
   if (!val) { showToast('Ingresa texto para simular.', 'error'); return; }
   switchTab('read');
-  showReadResult(`[SIMULADO]\n${val}`);
+  showReadResult(`[SIMULADO NFC/RFID]\n${val}`);
   addToHistory({ type: 'simulated', data: val });
-  showToast('Lectura simulada', 'success');
+  showToast('Lectura NFC/RFID simulada', 'success');
 }
 
 // ── HISTORIAL ─────────────────────────────
