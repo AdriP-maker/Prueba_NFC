@@ -506,14 +506,40 @@ body {
   transition: background var(--t-fast);
 }
 .bt-char-item:hover { background: rgba(96,165,250,0.08); }
-.bt-char-uuid {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  font-family: monospace;
+.bt-char-info {
+  display: flex;
+  flex-direction: column;
   flex: 1;
+  min-width: 0;
+}
+.bt-char-name {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bt-char-uuid {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  font-family: monospace;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.bt-char-empty {
+  padding: 7px 12px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.bt-svc-name {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
 }
 .bt-char-props { display: flex; gap: 4px; flex-wrap: wrap; }
 .prop-chip {
