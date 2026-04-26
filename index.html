@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <meta name="description" content="Prototipo Web NFC &amp; RFID – Lee y escribe tarjetas NFC/RFID (HF 13.56 MHz) desde tu móvil Android con Chrome y la Web NFC API." />
-  <title>NFC &amp; RFID Toolkit – Leer &amp; Escribir Tarjetas</title>
+  <meta name="description" content="NFC, RFID y Bluetooth Toolkit – Lee y escribe tarjetas NFC/RFID y dispositivos Bluetooth desde tu navegador." />
+  <title>NFC · RFID · BT Toolkit</title>
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
 
-  <!-- Lucide Icons (CDN) -->
+  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 
   <link rel="stylesheet" href="css/styles.css" />
@@ -23,11 +23,17 @@
     <div class="header-inner">
       <div class="logo">
         <span class="logo-icon"><i data-lucide="radio"></i></span>
-        <span class="logo-text">NFC &amp; RFID<strong> Toolkit</strong></span>
+        <span class="logo-text">NFC · RFID · <strong>BT</strong></span>
       </div>
-      <div id="nfc-badge" class="badge badge--checking" title="Estado de la Web NFC API (requerida para NFC y RFID HF)">
-        <span class="badge-dot"></span>
-        <span id="nfc-badge-label">Verificando NFC…</span>
+      <div class="header-badges">
+        <div id="nfc-badge" class="badge badge--checking" title="Estado Web NFC API">
+          <span class="badge-dot"></span>
+          <span id="nfc-badge-label">NFC…</span>
+        </div>
+        <div id="bt-badge" class="badge badge--checking" title="Estado Web Bluetooth API">
+          <span class="badge-dot"></span>
+          <span id="bt-badge-label">BT…</span>
+        </div>
       </div>
     </div>
   </header>
@@ -37,24 +43,30 @@
 
     <!-- TAB BAR -->
     <nav class="tab-bar" role="tablist" aria-label="Secciones">
-      <button id="tab-write" class="tab-btn tab-btn--active" role="tab" aria-selected="true" aria-controls="panel-write" onclick="switchTab('write')">
+      <button id="tab-write" class="tab-btn tab-btn--active" role="tab" aria-selected="true"
+              aria-controls="panel-write" onclick="switchTab('write')">
         <i data-lucide="pencil"></i> Escribir
       </button>
-      <button id="tab-read"  class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-read" onclick="switchTab('read')">
-        <i data-lucide="scan-line"></i> Leer
+      <button id="tab-read" class="tab-btn" role="tab" aria-selected="false"
+              aria-controls="panel-read" onclick="switchTab('read')">
+        <i data-lucide="scan-line"></i> Leer NFC
       </button>
-      <button id="tab-history" class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-history" onclick="switchTab('history')">
+      <button id="tab-bluetooth" class="tab-btn" role="tab" aria-selected="false"
+              aria-controls="panel-bluetooth" onclick="switchTab('bluetooth')">
+        <i data-lucide="bluetooth"></i> Bluetooth
+      </button>
+      <button id="tab-history" class="tab-btn" role="tab" aria-selected="false"
+              aria-controls="panel-history" onclick="switchTab('history')">
         <i data-lucide="history"></i> Historial
       </button>
     </nav>
 
-    <!-- ── PANEL: ESCRIBIR ───────────────────────────────── -->
+    <!-- ── PANEL: ESCRIBIR NFC ──────────────────────────── -->
     <section id="panel-write" class="panel panel--active" role="tabpanel">
       <div class="card">
-        <h2 class="card-title"><i data-lucide="tag"></i> Datos para la tarjeta NFC / RFID</h2>
+        <h2 class="card-title"><i data-lucide="tag"></i> Datos para tarjeta NFC / RFID</h2>
 
         <form id="write-form" novalidate>
-          <!-- Preset tipo -->
           <div class="field">
             <label for="preset-select">Plantilla rápida</label>
             <select id="preset-select" onchange="applyPreset(this.value)">
@@ -67,25 +79,17 @@
             </select>
           </div>
 
-          <!-- Payload -->
           <div class="field">
             <label for="payload-input">Contenido <span class="label-hint">(NTAG213/RFID HF · máx 144 bytes NDEF)</span></label>
-            <textarea
-              id="payload-input"
-              rows="5"
+            <textarea id="payload-input" rows="5"
               placeholder="Escribe aquí el texto o URL que se grabará en la tarjeta…"
-              oninput="updateByteCount()"
-              maxlength="144"
-            ></textarea>
+              oninput="updateByteCount()" maxlength="144"></textarea>
             <div class="byte-meter">
-              <div class="byte-bar">
-                <div id="byte-fill" class="byte-fill"></div>
-              </div>
+              <div class="byte-bar"><div id="byte-fill" class="byte-fill"></div></div>
               <span id="byte-count">0 / 144 bytes</span>
             </div>
           </div>
 
-          <!-- Opciones avanzadas -->
           <details class="advanced-opts">
             <summary>Opciones avanzadas</summary>
             <div class="field">
@@ -108,29 +112,27 @@
         </form>
       </div>
 
-      <!-- Estado operación escritura -->
       <div id="write-status" class="status-card status-card--hidden"></div>
     </section>
 
-    <!-- ── PANEL: LEER ───────────────────────────────────── -->
+    <!-- ── PANEL: LEER NFC ───────────────────────────────── -->
     <section id="panel-read" class="panel" role="tabpanel">
       <div class="card">
-        <h2 class="card-title"><i data-lucide="scan-line"></i> Escanear tarjeta</h2>
+        <h2 class="card-title"><i data-lucide="scan-line"></i> Escanear tarjeta NFC</h2>
         <p class="card-desc">Acerca tu teléfono a una tarjeta <strong>NFC o RFID HF (13.56 MHz)</strong> con formato NDEF para leer su contenido.</p>
 
         <button id="btn-scan" class="btn btn--secondary btn--full" onclick="startScan()">
-          <i data-lucide="wifi"></i> Iniciar escaneo
+          <i data-lucide="wifi"></i> Iniciar escaneo NFC
         </button>
         <button id="btn-stop-scan" class="btn btn--ghost btn--full" style="display:none" onclick="stopScan()">
           <i data-lucide="x-circle"></i> Detener escaneo
         </button>
       </div>
 
-      <!-- Resultado lectura -->
       <div id="read-result" class="result-card result-card--hidden">
         <div class="result-header">
           <i data-lucide="check-circle-2"></i>
-          <span>Tarjeta leída</span>
+          <span>Tarjeta NFC leída</span>
         </div>
         <div id="read-content" class="result-content"></div>
         <div class="result-actions">
@@ -139,43 +141,178 @@
         </div>
       </div>
 
-      <!-- Info RFID -->
       <div class="rfid-info-card">
-        <div class="rfid-info-header"><i data-lucide="cpu"></i> Compatibilidad RFID</div>
+        <div class="rfid-info-header"><i data-lucide="cpu"></i> Compatibilidad NFC/RFID</div>
         <ul class="rfid-list">
-          <li><span class="tag tag--ok">✓ Soportado</span> RFID HF 13.56 MHz (ISO 14443-A/B, ISO 15693) con formato NDEF</li>
-          <li><span class="tag tag--ok">✓ Soportado</span> NTAG213 / 215 / 216, MIFARE Ultralight, Type 4 Tag</li>
-          <li><span class="tag tag--no">✗ No soportado</span> RFID LF 125 kHz (EM4100, HID Prox) — sin acceso web</li>
-          <li><span class="tag tag--no">✗ No soportado</span> MIFARE Classic (cifrado propietario)</li>
+          <li><span class="tag tag--ok">✓</span> RFID HF 13.56 MHz (ISO 14443-A/B, ISO 15693) con NDEF</li>
+          <li><span class="tag tag--ok">✓</span> NTAG213/215/216, MIFARE Ultralight, Type 4 Tag</li>
+          <li><span class="tag tag--no">✗</span> RFID LF 125 kHz (EM4100, HID Prox) — sin acceso web</li>
+          <li><span class="tag tag--no">✗</span> MIFARE Classic (cifrado propietario)</li>
         </ul>
       </div>
 
-      <!-- Fallback: simulador -->
       <div id="sim-card" class="sim-card">
-        <div class="sim-header"><i data-lucide="flask-conical"></i> Simulador (sin NFC/RFID físico)</div>
-        <p class="sim-desc">Ingresa texto para simular la lectura de una tarjeta NFC o RFID.</p>
+        <div class="sim-header"><i data-lucide="flask-conical"></i> Simulador NFC (sin hardware)</div>
+        <p class="sim-desc">Ingresa texto para simular la lectura de una tarjeta NFC.</p>
         <div class="field">
           <input id="sim-input" type="text" placeholder="Simular contenido NFC…" />
         </div>
         <button class="btn btn--ghost btn--full" onclick="simulateRead()">
-          <i data-lucide="play-circle"></i> Simular lectura
+          <i data-lucide="play-circle"></i> Simular lectura NFC
         </button>
       </div>
+    </section>
+
+    <!-- ── PANEL: BLUETOOTH ──────────────────────────────── -->
+    <section id="panel-bluetooth" class="panel" role="tabpanel">
+
+      <!-- Conexión -->
+      <div class="card">
+        <h2 class="card-title"><i data-lucide="bluetooth"></i> Dispositivo Bluetooth</h2>
+        <p class="card-desc">Conecta a un dispositivo BLE (Bluetooth Low Energy) para <strong>leer y escribir características GATT</strong> desde el navegador.</p>
+
+        <!-- Filtros de búsqueda -->
+        <details class="advanced-opts" id="bt-filter-opts">
+          <summary>Filtros de búsqueda (opcional)</summary>
+          <div class="field" style="margin-top:12px">
+            <label for="bt-name-filter">Nombre del dispositivo (contiene)</label>
+            <input id="bt-name-filter" type="text" placeholder="Arduino, HC-08, HM-10…" />
+          </div>
+          <div class="field">
+            <label for="bt-service-filter">UUID de servicio (hex o nombre estándar)</label>
+            <input id="bt-service-filter" type="text" placeholder="ffe0, battery_service, 180d…" />
+          </div>
+          <div class="field">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none">
+              <input id="bt-accept-all" type="checkbox" style="width:auto;accent-color:var(--accent)" />
+              Aceptar cualquier dispositivo BLE (sin filtro)
+            </label>
+          </div>
+        </details>
+
+        <button id="btn-bt-connect" class="btn btn--bt btn--full" onclick="btConnect()">
+          <i data-lucide="bluetooth-searching"></i> Buscar y conectar
+        </button>
+        <button id="btn-bt-disconnect" class="btn btn--ghost btn--full" style="display:none" onclick="btDisconnect()">
+          <i data-lucide="bluetooth-off"></i> Desconectar
+        </button>
+      </div>
+
+      <!-- Info del dispositivo conectado -->
+      <div id="bt-device-info" class="bt-device-card bt-device-card--hidden">
+        <div class="bt-device-header">
+          <span class="bt-dot"></span>
+          <span id="bt-device-name">—</span>
+          <span id="bt-device-id" class="bt-device-id"></span>
+        </div>
+        <div id="bt-services-list" class="bt-services"></div>
+      </div>
+
+      <!-- Leer característica -->
+      <div class="card" id="bt-read-card">
+        <h2 class="card-title"><i data-lucide="download"></i> Leer característica GATT</h2>
+
+        <div class="field">
+          <label for="bt-read-service">UUID Servicio</label>
+          <input id="bt-read-service" type="text" placeholder="ffe0 · battery_service · 0000180f-…" />
+        </div>
+        <div class="field">
+          <label for="bt-read-char">UUID Característica</label>
+          <input id="bt-read-char" type="text" placeholder="ffe1 · battery_level · 00002a19-…" />
+        </div>
+
+        <!-- Presets BLE comunes -->
+        <div class="bt-presets">
+          <span class="bt-presets-label">Atajos:</span>
+          <button class="bt-preset-chip" onclick="btSetPreset('battery')">🔋 Batería</button>
+          <button class="bt-preset-chip" onclick="btSetPreset('device_info')">ℹ️ Info dispositivo</button>
+          <button class="bt-preset-chip" onclick="btSetPreset('hm10')">📡 HM-10 / HC-08</button>
+          <button class="bt-preset-chip" onclick="btSetPreset('heart_rate')">❤️ Freq. cardíaca</button>
+          <button class="bt-preset-chip" onclick="btSetPreset('temp')">🌡️ Temperatura</button>
+        </div>
+
+        <div class="btn-row">
+          <button id="btn-bt-read" class="btn btn--secondary" onclick="btReadChar()" style="flex:1" disabled>
+            <i data-lucide="download"></i> Leer una vez
+          </button>
+          <button id="btn-bt-notify" class="btn btn--ghost" onclick="btToggleNotify()" style="flex:1" disabled>
+            <i data-lucide="activity"></i> Suscribir
+          </button>
+        </div>
+      </div>
+
+      <!-- Resultado lectura BT -->
+      <div id="bt-read-result" class="result-card result-card--hidden">
+        <div class="result-header" style="color:var(--bt-color)">
+          <i data-lucide="bluetooth"></i>
+          <span>Datos Bluetooth recibidos</span>
+          <span id="bt-notify-badge" class="notify-badge" style="display:none">● LIVE</span>
+        </div>
+        <div id="bt-read-content" class="result-content"></div>
+        <div class="result-actions">
+          <button class="btn btn--sm" onclick="btCopyResult()"><i data-lucide="copy"></i> Copiar</button>
+          <button class="btn btn--sm btn--danger" onclick="btClearResult()"><i data-lucide="trash-2"></i> Limpiar</button>
+        </div>
+      </div>
+
+      <!-- Escribir característica -->
+      <div class="card" id="bt-write-card">
+        <h2 class="card-title"><i data-lucide="upload"></i> Escribir característica GATT</h2>
+
+        <div class="field">
+          <label for="bt-write-service">UUID Servicio</label>
+          <input id="bt-write-service" type="text" placeholder="ffe0 · 0000ffe0-…" />
+        </div>
+        <div class="field">
+          <label for="bt-write-char">UUID Característica</label>
+          <input id="bt-write-char" type="text" placeholder="ffe1 · 0000ffe1-…" />
+        </div>
+        <div class="field">
+          <label for="bt-write-value">Valor a escribir</label>
+          <textarea id="bt-write-value" rows="3"
+            placeholder="Texto, comando AT, número…&#10;Ej: AT+NAME=MiDispositivo"></textarea>
+        </div>
+        <div class="field">
+          <label for="bt-write-format">Formato de envío</label>
+          <select id="bt-write-format">
+            <option value="text">Texto UTF-8</option>
+            <option value="hex">Hex (ej: FF 0A 1B)</option>
+            <option value="uint8">Uint8 decimal</option>
+          </select>
+        </div>
+
+        <button id="btn-bt-write" class="btn btn--primary btn--full" onclick="btWriteChar()" disabled>
+          <i data-lucide="upload"></i> Escribir en dispositivo
+        </button>
+      </div>
+
+      <div id="bt-write-status" class="status-card status-card--hidden"></div>
+
+      <!-- Info compatibilidad BT -->
+      <div class="rfid-info-card" style="border-color:rgba(96,165,250,0.3);background:linear-gradient(135deg,rgba(96,165,250,0.06),rgba(96,165,250,0.02))">
+        <div class="rfid-info-header" style="color:var(--bt-color)"><i data-lucide="info"></i> Compatibilidad Bluetooth</div>
+        <ul class="rfid-list">
+          <li><span class="tag tag--ok">✓</span> Chrome/Edge en Android, Windows, macOS, Linux</li>
+          <li><span class="tag tag--ok">✓</span> Opera en escritorio</li>
+          <li><span class="tag tag--no">✗</span> iOS / Safari (Web Bluetooth no soportado)</li>
+          <li><span class="tag tag--no">✗</span> Firefox (sin soporte Web Bluetooth API)</li>
+        </ul>
+      </div>
+
     </section>
 
     <!-- ── PANEL: HISTORIAL ──────────────────────────────── -->
     <section id="panel-history" class="panel" role="tabpanel">
       <div class="card">
         <div class="history-header">
-          <h2 class="card-title"><i data-lucide="clock"></i> Historial de lecturas</h2>
+          <h2 class="card-title"><i data-lucide="clock"></i> Historial</h2>
           <button class="btn btn--sm btn--danger" onclick="clearHistory()"><i data-lucide="trash-2"></i></button>
         </div>
         <div id="history-list" class="history-list">
-          <p class="empty-state">No hay lecturas registradas aún.</p>
+          <p class="empty-state">No hay registros aún.</p>
         </div>
       </div>
 
-      <!-- Exportar a JSONBin -->
       <div class="card card--alt">
         <h2 class="card-title"><i data-lucide="cloud-upload"></i> Guardar en la nube</h2>
         <p class="card-desc">Exporta el historial a <strong>JSONBin.io</strong> (sin cuenta necesaria).</p>
@@ -192,7 +329,7 @@
 
   </main>
 
-  <!-- ─── TOAST NOTIFICATION ───────────────────────────── -->
+  <!-- ─── TOAST ───────────────────────────── -->
   <div id="toast" class="toast toast--hidden" role="alert" aria-live="polite"></div>
 
   <!-- ─── NFC NOT SUPPORTED OVERLAY ───────────────────── -->
@@ -201,14 +338,19 @@
       <i data-lucide="smartphone-nfc" class="overlay-icon"></i>
       <h3>NFC / RFID no disponible</h3>
       <p>Tu dispositivo o navegador no soporta la <strong>Web NFC API</strong>.<br>
-         Necesaria para leer/escribir NFC <em>y</em> RFID HF 13.56 MHz.<br>
-         Requisitos: <em>Chrome 89+ en Android</em>.</p>
+         Puedes usar el <strong>módulo Bluetooth</strong> si tu dispositivo lo soporta.<br>
+         NFC requiere: <em>Chrome 89+ en Android</em>.</p>
       <ul class="compat-list">
         <li><i data-lucide="check"></i> Chrome ≥ 89 en Android (NFC + RFID HF)</li>
-        <li><i data-lucide="x"></i> iOS / Safari (no soportado)</li>
-        <li><i data-lucide="x"></i> Chrome en escritorio (no soportado)</li>
+        <li><i data-lucide="x"></i> iOS / Safari (NFC web no soportado)</li>
+        <li><i data-lucide="x"></i> Chrome en escritorio (NFC no soportado)</li>
       </ul>
-      <button class="btn btn--primary" onclick="dismissOverlay()">Usar simulador</button>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button class="btn btn--bt" onclick="dismissOverlay(); switchTab('bluetooth')">
+          <i data-lucide="bluetooth"></i> Usar Bluetooth
+        </button>
+        <button class="btn btn--ghost" onclick="dismissOverlay()">Simulador</button>
+      </div>
     </div>
   </div>
 
