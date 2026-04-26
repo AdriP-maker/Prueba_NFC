@@ -221,14 +221,17 @@
           <input id="bt-read-char" type="text" placeholder="ffe1 · battery_level · 00002a19-…" />
         </div>
 
-        <!-- Presets BLE comunes -->
+        <!-- Presets BLE comunes agrupados -->
         <div class="bt-presets">
-          <span class="bt-presets-label">Atajos:</span>
-          <button class="bt-preset-chip" onclick="btSetPreset('battery')">🔋 Batería</button>
-          <button class="bt-preset-chip" onclick="btSetPreset('device_info')">ℹ️ Info dispositivo</button>
-          <button class="bt-preset-chip" onclick="btSetPreset('hm10')">📡 HM-10 / HC-08</button>
-          <button class="bt-preset-chip" onclick="btSetPreset('heart_rate')">❤️ Freq. cardíaca</button>
-          <button class="bt-preset-chip" onclick="btSetPreset('temp')">🌡️ Temperatura</button>
+          <label for="bt-preset-select" style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.03em">Preset rápido</label>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+            <select id="bt-preset-select" style="flex:1">
+              <option value="">— Selecciona un preset —</option>
+            </select>
+            <button class="btn btn--bt btn--sm" onclick="btApplyPresetSelect()" style="flex-shrink:0">
+              <i data-lucide="zap"></i> Aplicar
+            </button>
+          </div>
         </div>
 
         <div class="btn-row">
