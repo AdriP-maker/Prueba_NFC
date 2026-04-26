@@ -661,83 +661,79 @@ async function btConnect() {
 
   const requestOptions = {};
 
-  // Lista completa de servicios opcionales para poder acceder a ellos tras conectar
+  // Chrome acepta: nombres GATT estándar (string) O UUIDs completos (36 chars).
+  // NO mezclar ambos para el mismo servicio — elimina duplicados.
+  // Los UUIDs vendor (no-SIG) deben ir siempre como UUID completo.
   const ALL_OPTIONAL_SERVICES = [
-    // Estándar GATT por nombre
-    'battery_service', 'device_information', 'heart_rate', 'health_thermometer',
-    'generic_access', 'generic_attribute', 'immediate_alert', 'link_loss',
-    'tx_power', 'current_time', 'glucose', 'blood_pressure', 'alert_notification',
-    'human_interface_device', 'scan_parameters', 'running_speed_and_cadence',
-    'cycling_speed_and_cadence', 'cycling_power', 'location_and_navigation',
-    'environmental_sensing', 'body_composition', 'user_data', 'weight_scale',
-    'automation_io', 'fitness_machine', 'pulse_oximeter',
-    'continuous_glucose_monitoring', 'insulin_delivery',
-    'reconnection_configuration', 'phone_alert_status',
-    // Estándar GATT por UUID completo (Bluetooth SIG 0x18xx)
-    '00001800-0000-1000-8000-00805f9b34fb',
-    '00001801-0000-1000-8000-00805f9b34fb',
-    '00001802-0000-1000-8000-00805f9b34fb',
-    '00001803-0000-1000-8000-00805f9b34fb',
-    '00001804-0000-1000-8000-00805f9b34fb',
-    '00001805-0000-1000-8000-00805f9b34fb',
-    '00001806-0000-1000-8000-00805f9b34fb',
-    '00001807-0000-1000-8000-00805f9b34fb',
-    '00001808-0000-1000-8000-00805f9b34fb',
-    '00001809-0000-1000-8000-00805f9b34fb',
-    '0000180a-0000-1000-8000-00805f9b34fb',
-    '0000180d-0000-1000-8000-00805f9b34fb',
-    '0000180e-0000-1000-8000-00805f9b34fb',
-    '0000180f-0000-1000-8000-00805f9b34fb',
-    '00001810-0000-1000-8000-00805f9b34fb',
-    '00001811-0000-1000-8000-00805f9b34fb',
-    '00001812-0000-1000-8000-00805f9b34fb',
-    '00001813-0000-1000-8000-00805f9b34fb',
-    '00001814-0000-1000-8000-00805f9b34fb',
-    '00001815-0000-1000-8000-00805f9b34fb',
-    '00001816-0000-1000-8000-00805f9b34fb',
-    '00001818-0000-1000-8000-00805f9b34fb',
-    '00001819-0000-1000-8000-00805f9b34fb',
-    '0000181a-0000-1000-8000-00805f9b34fb',
-    '0000181b-0000-1000-8000-00805f9b34fb',
-    '0000181c-0000-1000-8000-00805f9b34fb',
-    '0000181d-0000-1000-8000-00805f9b34fb',
-    '0000181e-0000-1000-8000-00805f9b34fb',
-    '0000181f-0000-1000-8000-00805f9b34fb',
-    '00001820-0000-1000-8000-00805f9b34fb',
-    '00001821-0000-1000-8000-00805f9b34fb',
-    '00001822-0000-1000-8000-00805f9b34fb',
-    '00001826-0000-1000-8000-00805f9b34fb',
-    '0000183a-0000-1000-8000-00805f9b34fb',
-    '0000183e-0000-1000-8000-00805f9b34fb',
-    // Módulos Serial BLE más usados
+    // ── Servicios estándar por nombre canónico GATT ──────
+    // (Chrome los resuelve internamente, no duplicar con UUID)
+    'battery_service',
+    'device_information',
+    'heart_rate',
+    'health_thermometer',
+    'generic_access',
+    'generic_attribute',
+    'immediate_alert',
+    'link_loss',
+    'tx_power',
+    'current_time',
+    'glucose',
+    'blood_pressure',
+    'alert_notification',
+    'human_interface_device',
+    'scan_parameters',
+    'running_speed_and_cadence',
+    'cycling_speed_and_cadence',
+    'cycling_power',
+    'location_and_navigation',
+    'environmental_sensing',
+    'body_composition',
+    'user_data',
+    'weight_scale',
+    'automation_io',
+    'fitness_machine',
+    'pulse_oximeter',
+    'continuous_glucose_monitoring',
+    'insulin_delivery',
+    'reconnection_configuration',
+    'phone_alert_status',
+    // ── Servicios SIG sin nombre canónico en Chrome ───────
+    // Solo los que Chrome no reconoce por nombre
+    '00001806-0000-1000-8000-00805f9b34fb', // DST change
+    '00001807-0000-1000-8000-00805f9b34fb', // ref time
+    '0000180e-0000-1000-8000-00805f9b34fb', // phone alert
+    '00001820-0000-1000-8000-00805f9b34fb', // IPSS
+    '00001821-0000-1000-8000-00805f9b34fb', // indoor positioning
+    '00001826-0000-1000-8000-00805f9b34fb', // fitness machine (alt)
+    '0000183a-0000-1000-8000-00805f9b34fb', // insulin delivery
+    '0000183e-0000-1000-8000-00805f9b34fb', // physical activity
+    '00001843-0000-1000-8000-00805f9b34fb', // audio input
+    '00001844-0000-1000-8000-00805f9b34fb', // volume control
+    '00001847-0000-1000-8000-00805f9b34fb', // media control
+    // ── Módulos Serial BLE (vendor UUIDs) ─────────────────
     '0000ffe0-0000-1000-8000-00805f9b34fb', // HM-10 / HC-08
     '0000ffe5-0000-1000-8000-00805f9b34fb', // HM-10 control
     '0000fff0-0000-1000-8000-00805f9b34fb', // BLE Serial genérico
-    '0000fff5-0000-1000-8000-00805f9b34fb',
-    '0000ffd0-0000-1000-8000-00805f9b34fb', // CC2541
-    '0000ffd5-0000-1000-8000-00805f9b34fb',
+    '0000ffd0-0000-1000-8000-00805f9b34fb', // CC2541 UART
+    '0000ffd5-0000-1000-8000-00805f9b34fb', // CC2541 TX
+    '0000fee0-0000-1000-8000-00805f9b34fb', // Xiaomi Mi Band
+    '0000fee7-0000-1000-8000-00805f9b34fb', // Xiaomi data
+    '0000fe2c-0000-1000-8000-00805f9b34fb', // Google Fast Pair
+    '0000fd6f-0000-1000-8000-00805f9b34fb', // Apple proximity
     // Nordic UART Service (NUS)
     '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
-    // Xiaomi Mi Band
-    '0000fee0-0000-1000-8000-00805f9b34fb',
-    '0000fee7-0000-1000-8000-00805f9b34fb',
-    // TI SensorTag servicios
-    'f000aa00-0451-4000-b000-000000000000', // IR Temperatura
-    'f000aa10-0451-4000-b000-000000000000', // Acelerómetro
-    'f000aa20-0451-4000-b000-000000000000', // Humedad
-    'f000aa30-0451-4000-b000-000000000000', // Magnetómetro
-    'f000aa40-0451-4000-b000-000000000000', // Barómetro
-    'f000aa50-0451-4000-b000-000000000000', // Giroscopio
-    'f000aa70-0451-4000-b000-000000000000', // Sensor óptico
-    'f000aa80-0451-4000-b000-000000000000', // Movimiento
-    'f000ac00-0451-4000-b000-000000000000', // IO
-    // ESP32 / Arduino custom
+    // TI SensorTag
+    'f000aa00-0451-4000-b000-000000000000',
+    'f000aa10-0451-4000-b000-000000000000',
+    'f000aa20-0451-4000-b000-000000000000',
+    'f000aa30-0451-4000-b000-000000000000',
+    'f000aa40-0451-4000-b000-000000000000',
+    'f000aa50-0451-4000-b000-000000000000',
+    'f000aa70-0451-4000-b000-000000000000',
+    'f000aa80-0451-4000-b000-000000000000',
+    // ESP32 / Arduino BLE más comunes
     '4fafc201-1fb5-459e-8fcc-c5c9c331914b',
     'beb5483e-36e1-4688-b7f5-ea07361b26a8',
-    // Google Fast Pair
-    '0000fe2c-0000-1000-8000-00805f9b34fb',
-    // Apple
-    '0000fd6f-0000-1000-8000-00805f9b34fb',
   ];
 
   if (acceptAll) {
@@ -786,10 +782,16 @@ async function btConnect() {
     addToHistory({ type: 'bt-connect', data: `Conectado: ${device.name || device.id}` });
 
   } catch (err) {
-    if (err.name !== 'NotFoundError' && err.name !== 'AbortError') {
-      showToast(parseBTError(err), 'error');
+    if (err.name === 'NotFoundError') {
+      // Usuario cerró el diálogo sin elegir — no es error real
     } else if (err.name === 'AbortError') {
       showToast('Búsqueda cancelada.', '');
+    } else if (err.name === 'TypeError' || (err.message && err.message.includes('optionalServices'))) {
+      showToast('Error en lista de servicios. Intenta marcar "Aceptar cualquier dispositivo".', 'error');
+      console.error('[BT] requestDevice error:', err.name, err.message);
+    } else {
+      showToast(parseBTError(err), 'error');
+      console.error('[BT] requestDevice error:', err.name, err.message);
     }
   } finally {
     btnConnect.disabled = false;
