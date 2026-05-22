@@ -55,6 +55,10 @@
               aria-controls="panel-bluetooth" onclick="switchTab('bluetooth')">
         <i data-lucide="bluetooth"></i> Bluetooth
       </button>
+      <button id="tab-rfid" class="tab-btn" role="tab" aria-selected="false"
+              aria-controls="panel-rfid" onclick="switchTab('rfid')">
+        <i data-lucide="dog"></i> RFID
+      </button>
       <button id="tab-history" class="tab-btn" role="tab" aria-selected="false"
               aria-controls="panel-history" onclick="switchTab('history')">
         <i data-lucide="history"></i> Historial
@@ -300,6 +304,113 @@
           <li><span class="tag tag--no">✗</span> iOS / Safari (Web Bluetooth no soportado)</li>
           <li><span class="tag tag--no">✗</span> Firefox (sin soporte Web Bluetooth API)</li>
         </ul>
+      </div>
+
+    </section>
+
+    <!-- ── PANEL: RFID GANADERO ─────────────────────────── -->
+    <section id="panel-rfid" class="panel" role="tabpanel">
+
+      <!-- Conexión rápida -->
+      <div class="card">
+        <h2 class="card-title"><i data-lucide="dog"></i> Lector RFID Ganadero</h2>
+        <p class="card-desc">Conecta un <strong>lector RFID de baja frecuencia</strong> vía Bluetooth serial para capturar IDs de chips en animales (ISO 11784/11785 FDX-B).</p>
+
+        <div class="field">
+          <label for="rfid-name-filter">Nombre del dispositivo (opcional)</label>
+          <input id="rfid-name-filter" type="text" placeholder="HC-08, HM-10, RFID-BT…" />
+        </div>
+        <div class="field">
+          <label for="rfid-module-preset">Módulo Bluetooth del lector</label>
+          <select id="rfid-module-preset">
+            <option value="auto">🔍 Auto-detectar (HM-10 / Nordic UART)</option>
+            <option value="hm10">📡 HM-10 / HC-08 (FFE0 / FFE1)</option>
+            <option value="nus">📡 Nordic UART NUS (6E400001)</option>
+          </select>
+        </div>
+
+        <button id="btn-rfid-connect" class="btn btn--rfid btn--full" onclick="rfidConnect()">
+          <i data-lucide="bluetooth-searching"></i> Conectar lector RFID
+        </button>
+        <button id="btn-rfid-disconnect" class="btn btn--ghost btn--full" style="display:none" onclick="rfidDisconnect()">
+          <i data-lucide="bluetooth-off"></i> Desconectar
+        </button>
+
+        <div id="rfid-status" class="rfid-status-bar rfid-status--disconnected">
+          <span class="rfid-status-dot"></span>
+          <span id="rfid-status-text">Desconectado</span>
+        </div>
+      </div>
+
+      <!-- Lectura en vivo -->
+      <div id="rfid-live-card" class="card" style="display:none">
+        <h2 class="card-title">
+          <i data-lucide="activity"></i> Última lectura
+          <span id="rfid-live-badge" class="notify-badge" style="display:none">● LIVE</span>
+        </h2>
+        <div id="rfid-live-display" class="rfid-live-display">
+          <span class="rfid-live-placeholder">Esperando chip…</span>
+        </div>
+        <div id="rfid-live-detail" class="rfid-live-detail" style="display:none"></div>
+      </div>
+
+      <!-- Lista esperada -->
+      <div class="card card--alt">
+        <h2 class="card-title"><i data-lucide="list-checks"></i> Lista de IDs esperados</h2>
+        <p class="card-desc">Pega los IDs de los chips a validar (uno por línea). Las lecturas se marcarán como esperadas o nuevas.</p>
+        <div class="field">
+          <textarea id="rfid-expected-input" rows="4"
+            placeholder="985123456789012&#10;724000012345678&#10;591000087654321…"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn--secondary" style="flex:1" onclick="rfidLoadExpected()">
+            <i data-lucide="upload"></i> Cargar lista
+          </button>
+          <button class="btn btn--ghost btn--sm" onclick="rfidClearExpected()">
+            <i data-lucide="x"></i> Limpiar
+          </button>
+        </div>
+        <div id="rfid-expected-count" class="rfid-expected-info" style="display:none"></div>
+      </div>
+
+      <!-- Simulador -->
+      <div class="sim-card">
+        <div class="sim-header"><i data-lucide="flask-conical"></i> Simulador RFID (sin hardware)</div>
+        <p class="sim-desc">Ingresa un ID de chip para probar el flujo de validación sin conectar el lector.</p>
+        <div class="field">
+          <input id="rfid-sim-input" type="text" placeholder="985123456789012 · 3D9001234567 · 591 000087654321" />
+        </div>
+        <button class="btn btn--ghost btn--full" onclick="rfidSimulate()">
+          <i data-lucide="play-circle"></i> Simular lectura RFID
+        </button>
+      </div>
+
+      <!-- Sesión de validación -->
+      <div class="card">
+        <div class="rfid-session-header">
+          <h2 class="card-title"><i data-lucide="table-2"></i> Sesión de validación</h2>
+          <div class="rfid-session-counts" id="rfid-session-counts">
+            <span class="rfid-count rfid-count--total">0 leídos</span>
+            <span class="rfid-count rfid-count--match">0 esperados</span>
+            <span class="rfid-count rfid-count--new">0 nuevos</span>
+          </div>
+        </div>
+
+        <div id="rfid-session-table-wrap" class="rfid-table-wrap">
+          <p class="empty-state">Sin lecturas en esta sesión.</p>
+        </div>
+
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn--sm btn--danger" onclick="rfidClearSession()">
+            <i data-lucide="trash-2"></i> Limpiar sesión
+          </button>
+          <button class="btn btn--sm btn--secondary" onclick="rfidExportCSV()">
+            <i data-lucide="file-down"></i> CSV
+          </button>
+          <button class="btn btn--sm" onclick="rfidExportJSON()">
+            <i data-lucide="braces"></i> JSON
+          </button>
+        </div>
       </div>
 
     </section>
