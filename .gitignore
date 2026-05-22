@@ -1,2 +1,10 @@
 # Claude Code internal files
 .claude/
+
+# Variables de entorno — nunca subir al repo
+.env
+config.js
+
+# Referencias de ejemplo (sin valores reales) — sí se pueden subir
+# .env.example
+# config.example.js
