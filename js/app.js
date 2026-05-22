@@ -26,7 +26,7 @@ const State = {
   JSONBIN_BASE: 'https://api.jsonbin.io/v3/b',
   JSONBIN_ID:   null,
 
-  // Sync Remoto — JSONBin.io
+  // Sync Remoto — Ably Realtime
   syncMode:       null,
   syncToken:      null,
   syncActive:     false,
@@ -2180,29 +2180,52 @@ function rfidUpdateLiveDisplay(parsed) {
 }
 
 // ══════════════════════════════════════════════════════
-//  SYNC REMOTO — JSONBin.io
-//  API key guardada en localStorage (nunca en el repo)
-//  Emisor: crea un bin y comparte el ID
-//  Receptor: lee el bin con polling
+//  SYNC REMOTO — Ably Realtime (push, sin polling)
+//  Emisor: publica lecturas con key publish-only
+//  Receptor: suscribe con key subscribe-only
+//  Ambas keys son restringidas por capability → seguras en repo público
 // ══════════════════════════════════════════════════════
 
-const SYNC_POLL_MS      = 2500;
-const SYNC_POLL_ERR_MS  = 5000;
-const SYNC_MAX_READINGS = 20;
-const JSONBIN_SYNC_BASE = 'https://api.jsonbin.io/v3/b';
+const ABLY_KEY_EMISOR   = 'BH0iMQ.WPMhnQ:15uffR9xamBYkYg5kMyBqkie8oJ5h3268B4g5VHh5q8';
+const ABLY_KEY_RECEPTOR = 'BH0iMQ.H8Q_BQ:98oPk8LQ392nu-i0qLceTdiDBowx0onqRTznit01OnY';
+const ABLY_CHANNEL_PREFIX = 'nfc:';
+
+// Instancia Ably activa
+let _ablyClient  = null;
+let _ablyChannel = null;
 
 function syncInit() {
-  // Cargar API key guardada y mostrarla en el campo
-  const saved = localStorage.getItem('jsonbin_api_key') || '';
-  const field = document.getElementById('sync-api-key');
-  if (field && saved) field.value = saved;
+  // noop — Ably se conecta al seleccionar modo y generar/unirse a sesión
 }
 
-function syncGetApiKey() {
-  const field = document.getElementById('sync-api-key');
-  const val   = field ? field.value.trim() : '';
-  if (val) localStorage.setItem('jsonbin_api_key', val);
-  return val || localStorage.getItem('jsonbin_api_key') || '';
+// Genera un código de sesión aleatorio de 6 caracteres (fácil de compartir)
+function syncGenerateToken() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from(crypto.getRandomValues(new Uint8Array(6)))
+    .map(b => chars[b % chars.length]).join('');
+}
+
+function syncGetChannelName(code) {
+  return ABLY_CHANNEL_PREFIX + code;
+}
+
+// Conecta a Ably con la key correcta según el modo
+function syncAblyConnect(key) {
+  return new Promise((resolve, reject) => {
+    if (typeof Ably === 'undefined') {
+      reject(new Error('Ably SDK no cargado. Verifica tu conexión a internet.'));
+      return;
+    }
+    if (_ablyClient) {
+      _ablyClient.close();
+      _ablyClient  = null;
+      _ablyChannel = null;
+    }
+    const client = new Ably.Realtime({ key, closeOnUnload: true });
+    client.connection.once('connected', () => resolve(client));
+    client.connection.once('failed',    () => reject(new Error('No se pudo conectar a Ably.')));
+    _ablyClient = client;
+  });
 }
 
 function syncSetMode(mode) {
@@ -2219,59 +2242,37 @@ function syncSetMode(mode) {
 }
 
 async function syncGenerateSession() {
-  const apiKey = syncGetApiKey();
-  if (!apiKey) {
-    showToast('Ingresa tu API Key de JSONBin antes de generar sesión.', 'error');
-    document.getElementById('sync-api-key').focus();
-    return;
-  }
-
   const btn = document.getElementById('btn-sync-generate');
   btn.disabled = true;
   syncUpdateStatusBar('connecting');
 
-  const payload = {
-    sessionActive: true,
-    createdAt:     new Date().toISOString(),
-    lastActivity:  new Date().toISOString(),
-    lastReadingId: 0,
-    readings:      [],
-  };
-
   try {
-    const res = await fetch(JSONBIN_SYNC_BASE, {
-      method:  'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'X-Master-Key':  apiKey,
-        'X-Bin-Name':    'sync-session-' + Date.now(),
-        'X-Bin-Private': 'true',
-      },
-      body: JSON.stringify(payload),
+    const code = syncGenerateToken();       // ej: "K7MN2P"
+    await syncAblyConnect(ABLY_KEY_EMISOR);
+
+    _ablyChannel = _ablyClient.channels.get(syncGetChannelName(code));
+
+    // Escuchar confirmaciones del receptor (opcional: saber que está conectado)
+    _ablyChannel.subscribe('receptor-ready', () => {
+      showToast('📡 Receptor conectado y listo.', 'success');
     });
 
-    if (!res.ok) {
-      let msg = `HTTP ${res.status}`;
-      try { const j = await res.json(); msg = j.message || msg; } catch {}
-      throw new Error(msg);
-    }
+    State.syncToken  = code;
+    State.syncActive = true;
 
-    const data  = await res.json();
-    const binId = data?.metadata?.id;
-    if (!binId) throw new Error('No se obtuvo el ID del bin.');
-
-    State.syncToken      = binId;
-    State.syncActive     = true;
-    State.syncLastSeenId = 0;
-
-    document.getElementById('sync-code-display').textContent     = binId;
-    document.getElementById('sync-active-section').style.display  = '';
+    document.getElementById('sync-code-display').textContent      = code;
+    document.getElementById('sync-active-section').style.display   = '';
     document.getElementById('sync-generate-section').style.display = 'none';
-    document.getElementById('sync-emisor-card').style.display     = '';
+    document.getElementById('sync-emisor-card').style.display      = '';
     document.getElementById('btn-sync-send-last').disabled = State.history.length === 0;
     syncUpdateStatusBar('active');
     syncUpdateSendButtons();
     showToast('Sesión creada. Comparte el código con el Receptor.', 'success');
+
+    // Detectar desconexión
+    _ablyClient.connection.on('disconnected', () => syncUpdateStatusBar('error'));
+    _ablyClient.connection.on('connected',    () => syncUpdateStatusBar('active'));
+
   } catch (err) {
     syncUpdateStatusBar('error');
     showToast(`Error al crear sesión: ${err.message}`, 'error');
@@ -2280,58 +2281,39 @@ async function syncGenerateSession() {
   }
 }
 
-async function syncFetchRecord(binId) {
-  const apiKey = syncGetApiKey();
-  const headers = { 'X-Bin-Meta': 'false' };
-  if (apiKey) headers['X-Master-Key'] = apiKey;
-
-  const res = await fetch(`${JSONBIN_SYNC_BASE}/${binId}/latest`, { headers });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-async function syncPatchRecord(binId, record) {
-  const apiKey = syncGetApiKey();
-  if (!apiKey) throw new Error('API Key requerida para actualizar.');
-
-  const res = await fetch(`${JSONBIN_SYNC_BASE}/${binId}`, {
-    method:  'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Master-Key': apiKey,
-    },
-    body: JSON.stringify(record),
-  });
-
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try { const j = await res.json(); msg = j.message || msg; } catch {}
-    throw new Error(msg);
-  }
-  return res.json();
-}
-
 async function syncConnect() {
-  const input = document.getElementById('sync-code-input').value.trim();
+  const input = document.getElementById('sync-code-input').value.trim().toUpperCase();
   if (!input) { showToast('Ingresa el código de sesión.', 'error'); return; }
 
   const btn = document.getElementById('btn-sync-connect');
   btn.disabled = true;
   syncUpdateStatusBar('connecting');
+
   try {
-    const record = await syncFetchRecord(input);
-    if (!record || record.sessionActive === false) throw new Error('Sesión inactiva o expirada.');
-    State.syncToken      = input;
-    State.syncActive     = true;
-    State.syncLastSeenId = record.lastReadingId || 0;
-    State.syncErrorCount = 0;
-    document.getElementById('sync-code-display').textContent = State.syncToken;
+    await syncAblyConnect(ABLY_KEY_RECEPTOR);
+    _ablyChannel = _ablyClient.channels.get(syncGetChannelName(input));
+
+    // Suscribirse a lecturas del emisor
+    _ablyChannel.subscribe('nfc-reading', (msg) => {
+      syncRenderReading(msg.data);
+    });
+
+    // Avisar al emisor que estamos listos
+    // (subscribe-only key no puede publicar — es intencional, solo señal visual)
+
+    State.syncToken  = input;
+    State.syncActive = true;
+
+    document.getElementById('sync-code-display').textContent = input;
     document.getElementById('sync-active-section').style.display = '';
     document.getElementById('sync-join-section').style.display   = 'none';
     document.getElementById('sync-receptor-card').style.display  = '';
     syncUpdateStatusBar('active');
-    syncStartPolling();
-    showToast('Conectado. Esperando lecturas…', 'success');
+
+    _ablyClient.connection.on('disconnected', () => syncUpdateStatusBar('error'));
+    _ablyClient.connection.on('connected',    () => syncUpdateStatusBar('active'));
+
+    showToast('Conectado. Esperando lecturas del Emisor…', 'success');
   } catch (err) {
     syncUpdateStatusBar('error');
     showToast(`Error al conectar: ${err.message}`, 'error');
@@ -2340,34 +2322,28 @@ async function syncConnect() {
   }
 }
 
-function syncStartPolling() {
-  if (State.syncPollTimer) clearInterval(State.syncPollTimer);
-  State.syncPollTimer = setInterval(syncPollBin, SYNC_POLL_MS);
-}
-
-async function syncPollBin() {
-  if (!State.syncActive || !State.syncToken) return;
+async function syncSendEntry(entry) {
+  if (!State.syncActive || !_ablyChannel || !entry) return;
   try {
-    const record = await syncFetchRecord(State.syncToken);
-    State.syncErrorCount = 0;
-    syncUpdateStatusBar('active');
-    syncProcessIncoming(record);
-  } catch {
-    syncHandleError();
+    const reading = {
+      id:   Date.now(),
+      type: entry.type,
+      data: entry.data || '',
+      ts:   entry.ts || new Date().toISOString(),
+    };
+    await _ablyChannel.publish('nfc-reading', reading);
+
+    const infoEl = document.getElementById('sync-last-sent-info');
+    infoEl.style.display = '';
+    infoEl.textContent   = `Último envío: ${escapeHTML(reading.data)} · ${new Date().toLocaleString('es-PA')}`;
+    showToast('Lectura enviada al Receptor.', 'success');
+  } catch (err) {
+    showToast(`Error al enviar: ${err.message}`, 'error');
   }
 }
 
-function syncProcessIncoming(record) {
-  if (!record || !Array.isArray(record.readings)) return;
-  if (record.sessionActive === false) {
-    syncUpdateStatusBar('expired');
-    syncDisconnect();
-    showToast('La sesión del Emisor expiró.', 'error');
-    return;
-  }
-  const newReadings = record.readings.filter(r => r.id > State.syncLastSeenId);
-  newReadings.forEach(r => syncRenderReading(r));
-  if (newReadings.length) State.syncLastSeenId = record.lastReadingId;
+function syncSendLast() {
+  if (State.history.length) syncSendEntry(State.history[0]);
 }
 
 function syncRenderReading(reading) {
@@ -2394,51 +2370,26 @@ function syncRenderReading(reading) {
   showToast(`📶 Lectura recibida: ${reading.data}`, 'success');
 }
 
-async function syncSendEntry(entry) {
-  if (!State.syncActive || !State.syncToken || !entry) return;
-  try {
-    const record     = await syncFetchRecord(State.syncToken);
-    const newId      = (record.lastReadingId || 0) + 1;
-    const newReading = {
-      id:   newId,
-      type: entry.type,
-      data: entry.data || '',
-      ts:   entry.ts || new Date().toISOString(),
-    };
-    const readings = [...(record.readings || []), newReading].slice(-SYNC_MAX_READINGS);
-    const updated  = { ...record, lastActivity: new Date().toISOString(), lastReadingId: newId, readings };
-    await syncPatchRecord(State.syncToken, updated);
-
-    const infoEl = document.getElementById('sync-last-sent-info');
-    infoEl.style.display = '';
-    infoEl.textContent   = `Último envío: ${escapeHTML(newReading.data)} · ${new Date().toLocaleString('es-PA')}`;
-    showToast('Lectura enviada al Receptor.', 'success');
-  } catch (err) {
-    showToast(`Error al enviar: ${err.message}`, 'error');
-  }
-}
-
-function syncSendLast() {
-  if (State.history.length) syncSendEntry(State.history[0]);
-}
-
 function syncDisconnect() {
-  if (State.syncPollTimer) { clearInterval(State.syncPollTimer); State.syncPollTimer = null; }
-  if (State.syncActive && State.syncMode === 'emisor' && State.syncToken) {
-    syncFetchRecord(State.syncToken)
-      .then(record => syncPatchRecord(State.syncToken, { ...record, sessionActive: false, lastActivity: new Date().toISOString() }))
-      .catch(() => {});
+  if (_ablyChannel) {
+    _ablyChannel.unsubscribe();
+    _ablyChannel = null;
+  }
+  if (_ablyClient) {
+    _ablyClient.close();
+    _ablyClient = null;
   }
   State.syncActive     = false;
   State.syncToken      = null;
-  State.syncLastSeenId = 0;
   State.syncErrorCount = 0;
   State.syncAutoSend   = false;
+
   document.getElementById('sync-active-section').style.display  = 'none';
   document.getElementById('sync-emisor-card').style.display     = 'none';
   document.getElementById('sync-receptor-card').style.display   = 'none';
   const toggle = document.getElementById('sync-auto-toggle');
   if (toggle) toggle.checked = false;
+
   if (State.syncMode === 'emisor') {
     document.getElementById('sync-generate-section').style.display = '';
   } else if (State.syncMode === 'receptor') {
@@ -2449,16 +2400,6 @@ function syncDisconnect() {
   showToast('Sesión sync desconectada.', 'success');
 }
 
-function syncHandleError() {
-  State.syncErrorCount++;
-  if (State.syncErrorCount === 3) {
-    syncUpdateStatusBar('error');
-    if (State.syncPollTimer) { clearInterval(State.syncPollTimer); State.syncPollTimer = null; }
-    State.syncPollTimer = setInterval(syncPollBin, SYNC_POLL_ERR_MS);
-    showToast('Sync: sin conexión. Reintentando…', 'error');
-  }
-}
-
 function syncUpdateStatusBar(state) {
   const bar  = document.getElementById('sync-status-bar');
   const text = document.getElementById('sync-status-text');
@@ -2466,8 +2407,8 @@ function syncUpdateStatusBar(state) {
   bar.className = `sync-status-bar sync-status--${state}`;
   const labels = {
     idle:       'Selecciona un modo para comenzar',
-    connecting: 'Conectando…',
-    active:     State.syncMode === 'emisor' ? 'Sesión activa — listo para enviar' : 'Conectado — recibiendo lecturas',
+    connecting: 'Conectando a Ably…',
+    active:     State.syncMode === 'emisor' ? 'Sesión activa — listo para enviar' : 'Conectado — recibiendo lecturas en tiempo real',
     error:      'Sin conexión — reintentando…',
     expired:    'Sesión expirada',
   };
@@ -2475,7 +2416,7 @@ function syncUpdateStatusBar(state) {
 }
 
 function syncUpdateSendButtons() {
-  const enabled = State.syncActive && State.syncMode === 'emisor' && State.history.length > 0;
+  const enabled = State.syncActive && State.syncMode === 'emisor';
   ['btn-nfc-sync-send', 'btn-rfid-sync-send', 'btn-sync-send-last'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.disabled = !enabled;
@@ -2496,6 +2437,7 @@ function syncClearFeed() {
   countEl.style.display = 'none';
   countEl.textContent   = '0';
 }
+
 
 
 

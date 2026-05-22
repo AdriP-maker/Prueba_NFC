@@ -453,13 +453,7 @@
     <section id="panel-sync" class="panel" role="tabpanel">
       <div class="card">
         <h2 class="card-title"><i data-lucide="wifi"></i> Sync Remoto</h2>
-        <p class="card-desc">Conecta dos dispositivos: el <strong>Emisor</strong> (teléfono) escanea y envía lecturas al <strong>Receptor</strong> (computador) en tiempo real vía JSONBin.io.</p>
-
-        <div class="field">
-          <label for="sync-api-key">API Key de JSONBin.io <span class="label-hint">(se guarda localmente)</span></label>
-          <input id="sync-api-key" type="password" placeholder="$2a$10$…" autocomplete="off"
-                 oninput="localStorage.setItem('jsonbin_api_key', this.value.trim())" />
-        </div>
+        <p class="card-desc">Conecta dos dispositivos: el <strong>Emisor</strong> (teléfono) escanea y envía lecturas al <strong>Receptor</strong> (computador) en tiempo real vía Ably.</p>
 
         <div class="sync-mode-switcher">
           <button id="btn-sync-emisor" class="btn btn--sm sync-mode-btn" onclick="syncSetMode('emisor')">
@@ -554,5 +548,6 @@
   </div>
 
   <script src="js/app.js"></script>
+  <script src="https://cdn.ably.com/lib/ably.min-2.js"></script>
 </body>
 </html>
