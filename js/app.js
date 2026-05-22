@@ -26,7 +26,7 @@ const State = {
   JSONBIN_BASE: 'https://api.jsonbin.io/v3/b',
   JSONBIN_ID:   null,
 
-  // Sync Remoto — GitHub Gist
+  // Sync Remoto — JSONBin.io
   syncMode:       null,
   syncToken:      null,
   syncActive:     false,
@@ -2180,66 +2180,29 @@ function rfidUpdateLiveDisplay(parsed) {
 }
 
 // ══════════════════════════════════════════════════════
-//  SYNC REMOTO — GitHub Gist (CORS abierto, gratuito)
-//  Emisor: crea un Gist privado y comparte el ID corto
-//  Receptor: lee el Gist con GET público (sin token)
+//  SYNC REMOTO — JSONBin.io
+//  API key guardada en localStorage (nunca en el repo)
+//  Emisor: crea un bin y comparte el ID
+//  Receptor: lee el bin con polling
 // ══════════════════════════════════════════════════════
 
 const SYNC_POLL_MS      = 2500;
 const SYNC_POLL_ERR_MS  = 5000;
 const SYNC_MAX_READINGS = 20;
-const GIST_TOKEN        = (typeof window !== 'undefined' && window.ENV?.GIST_TOKEN) || '';
-const GIST_API          = 'https://api.github.com/gists';
-const GIST_FILENAME     = 'sync.json';
+const JSONBIN_SYNC_BASE = 'https://api.jsonbin.io/v3/b';
 
 function syncInit() {
-  // noop — listeners declarados en HTML via onclick
+  // Cargar API key guardada y mostrarla en el campo
+  const saved = localStorage.getItem('jsonbin_api_key') || '';
+  const field = document.getElementById('sync-api-key');
+  if (field && saved) field.value = saved;
 }
 
-function syncGenerateToken() {
-  const arr = new Uint8Array(6);
-  crypto.getRandomValues(arr);
-  return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// Devuelve la URL de la API para leer/actualizar el gist por su ID
-function syncUrl(gistId) {
-  return `${GIST_API}/${gistId}`;
-}
-
-// Lee el contenido JSON del archivo sync.json dentro del gist
-async function syncFetchRecord(gistId) {
-  const res = await fetch(syncUrl(gistId), {
-    headers: { 'Accept': 'application/vnd.github+json' }
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const gist = await res.json();
-  const raw  = gist?.files?.[GIST_FILENAME]?.content;
-  if (!raw) throw new Error('Archivo sync.json no encontrado en el Gist.');
-  return JSON.parse(raw);
-}
-
-// Actualiza el contenido del gist con PATCH (requiere token)
-async function syncPatchRecord(gistId, record) {
-  const res = await fetch(syncUrl(gistId), {
-    method:  'PATCH',
-    headers: {
-      'Accept':        'application/vnd.github+json',
-      'Authorization': `Bearer ${GIST_TOKEN}`,
-      'Content-Type':  'application/json',
-    },
-    body: JSON.stringify({
-      files: {
-        [GIST_FILENAME]: { content: JSON.stringify(record) }
-      }
-    }),
-  });
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try { const j = await res.json(); msg = j.message || msg; } catch {}
-    throw new Error(msg);
-  }
-  return res.json();
+function syncGetApiKey() {
+  const field = document.getElementById('sync-api-key');
+  const val   = field ? field.value.trim() : '';
+  if (val) localStorage.setItem('jsonbin_api_key', val);
+  return val || localStorage.getItem('jsonbin_api_key') || '';
 }
 
 function syncSetMode(mode) {
@@ -2256,6 +2219,13 @@ function syncSetMode(mode) {
 }
 
 async function syncGenerateSession() {
+  const apiKey = syncGetApiKey();
+  if (!apiKey) {
+    showToast('Ingresa tu API Key de JSONBin antes de generar sesión.', 'error');
+    document.getElementById('sync-api-key').focus();
+    return;
+  }
+
   const btn = document.getElementById('btn-sync-generate');
   btn.disabled = true;
   syncUpdateStatusBar('connecting');
@@ -2269,20 +2239,15 @@ async function syncGenerateSession() {
   };
 
   try {
-    const res = await fetch(GIST_API, {
+    const res = await fetch(JSONBIN_SYNC_BASE, {
       method:  'POST',
       headers: {
-        'Accept':        'application/vnd.github+json',
-        'Authorization': `Bearer ${GIST_TOKEN}`,
         'Content-Type':  'application/json',
+        'X-Master-Key':  apiKey,
+        'X-Bin-Name':    'sync-session-' + Date.now(),
+        'X-Bin-Private': 'true',
       },
-      body: JSON.stringify({
-        description: 'NFC-BT-Toolkit Sync Session',
-        public:      false,
-        files: {
-          [GIST_FILENAME]: { content: JSON.stringify(payload) }
-        }
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
@@ -2291,18 +2256,18 @@ async function syncGenerateSession() {
       throw new Error(msg);
     }
 
-    const gist = await res.json();
-    const gistId = gist.id;
-    if (!gistId) throw new Error('No se obtuvo el ID del Gist.');
+    const data  = await res.json();
+    const binId = data?.metadata?.id;
+    if (!binId) throw new Error('No se obtuvo el ID del bin.');
 
-    State.syncToken      = gistId;
+    State.syncToken      = binId;
     State.syncActive     = true;
     State.syncLastSeenId = 0;
 
-    document.getElementById('sync-code-display').textContent = State.syncToken;
-    document.getElementById('sync-active-section').style.display   = '';
+    document.getElementById('sync-code-display').textContent     = binId;
+    document.getElementById('sync-active-section').style.display  = '';
     document.getElementById('sync-generate-section').style.display = 'none';
-    document.getElementById('sync-emisor-card').style.display      = '';
+    document.getElementById('sync-emisor-card').style.display     = '';
     document.getElementById('btn-sync-send-last').disabled = State.history.length === 0;
     syncUpdateStatusBar('active');
     syncUpdateSendButtons();
@@ -2315,9 +2280,41 @@ async function syncGenerateSession() {
   }
 }
 
+async function syncFetchRecord(binId) {
+  const apiKey = syncGetApiKey();
+  const headers = { 'X-Bin-Meta': 'false' };
+  if (apiKey) headers['X-Master-Key'] = apiKey;
+
+  const res = await fetch(`${JSONBIN_SYNC_BASE}/${binId}/latest`, { headers });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function syncPatchRecord(binId, record) {
+  const apiKey = syncGetApiKey();
+  if (!apiKey) throw new Error('API Key requerida para actualizar.');
+
+  const res = await fetch(`${JSONBIN_SYNC_BASE}/${binId}`, {
+    method:  'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Master-Key': apiKey,
+    },
+    body: JSON.stringify(record),
+  });
+
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const j = await res.json(); msg = j.message || msg; } catch {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
 async function syncConnect() {
   const input = document.getElementById('sync-code-input').value.trim();
   if (!input) { showToast('Ingresa el código de sesión.', 'error'); return; }
+
   const btn = document.getElementById('btn-sync-connect');
   btn.disabled = true;
   syncUpdateStatusBar('connecting');
@@ -2410,7 +2407,6 @@ async function syncSendEntry(entry) {
     };
     const readings = [...(record.readings || []), newReading].slice(-SYNC_MAX_READINGS);
     const updated  = { ...record, lastActivity: new Date().toISOString(), lastReadingId: newId, readings };
-
     await syncPatchRecord(State.syncToken, updated);
 
     const infoEl = document.getElementById('sync-last-sent-info');
@@ -2428,7 +2424,6 @@ function syncSendLast() {
 
 function syncDisconnect() {
   if (State.syncPollTimer) { clearInterval(State.syncPollTimer); State.syncPollTimer = null; }
-  // Marcar sesión como inactiva al desconectar (solo el emisor)
   if (State.syncActive && State.syncMode === 'emisor' && State.syncToken) {
     syncFetchRecord(State.syncToken)
       .then(record => syncPatchRecord(State.syncToken, { ...record, sessionActive: false, lastActivity: new Date().toISOString() }))
@@ -2501,6 +2496,7 @@ function syncClearFeed() {
   countEl.style.display = 'none';
   countEl.textContent   = '0';
 }
+
 
 
 function rfidRenderSession() {
