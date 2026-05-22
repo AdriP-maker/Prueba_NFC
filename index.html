@@ -63,6 +63,10 @@
               aria-controls="panel-history" onclick="switchTab('history')">
         <i data-lucide="history"></i> Historial
       </button>
+      <button id="tab-sync" class="tab-btn" role="tab" aria-selected="false"
+              aria-controls="panel-sync" onclick="switchTab('sync')">
+        <i data-lucide="wifi"></i> Sync
+      </button>
     </nav>
 
     <!-- ── PANEL: ESCRIBIR NFC ──────────────────────────── -->
@@ -142,6 +146,7 @@
         <div class="result-actions">
           <button class="btn btn--sm" onclick="copyReadResult()"><i data-lucide="copy"></i> Copiar</button>
           <button class="btn btn--sm btn--danger" onclick="clearReadResult()"><i data-lucide="trash-2"></i> Limpiar</button>
+          <button id="btn-nfc-sync-send" class="btn btn--sm btn--sync-send" onclick="syncSendEntry(State.history[0])" disabled><i data-lucide="wifi"></i> Enviar a Receptor</button>
         </div>
       </div>
 
@@ -352,6 +357,9 @@
           <span class="rfid-live-placeholder">Esperando chip…</span>
         </div>
         <div id="rfid-live-detail" class="rfid-live-detail" style="display:none"></div>
+        <div id="rfid-sync-actions" style="display:none;margin-top:8px">
+          <button id="btn-rfid-sync-send" class="btn btn--sm btn--sync-send btn--full" onclick="syncSendEntry(State.history[0])" disabled><i data-lucide="wifi"></i> Enviar a Receptor</button>
+        </div>
       </div>
 
       <!-- Lista esperada -->
@@ -438,6 +446,77 @@
           <i data-lucide="upload-cloud"></i> Exportar historial
         </button>
         <div id="jsonbin-status" class="jsonbin-status" style="display:none;"></div>
+      </div>
+    </section>
+
+    <!-- ── PANEL: SYNC REMOTO ──────────────────────────── -->
+    <section id="panel-sync" class="panel" role="tabpanel">
+      <div class="card">
+        <h2 class="card-title"><i data-lucide="wifi"></i> Sync Remoto</h2>
+        <p class="card-desc">Conecta dos dispositivos: el <strong>Emisor</strong> (teléfono) escanea y envía lecturas al <strong>Receptor</strong> (computador) en tiempo real vía JSONBin.io.</p>
+
+        <div class="sync-mode-switcher">
+          <button id="btn-sync-emisor" class="btn btn--sm sync-mode-btn" onclick="syncSetMode('emisor')">
+            <i data-lucide="send"></i> Emisor
+          </button>
+          <button id="btn-sync-receptor" class="btn btn--sm sync-mode-btn" onclick="syncSetMode('receptor')">
+            <i data-lucide="monitor"></i> Receptor
+          </button>
+        </div>
+
+        <div id="sync-generate-section" style="display:none;margin-top:12px">
+          <button id="btn-sync-generate" class="btn btn--primary btn--full" onclick="syncGenerateSession()">
+            <i data-lucide="plus-circle"></i> Generar sesión
+          </button>
+        </div>
+
+        <div id="sync-join-section" style="display:none;margin-top:12px">
+          <div class="field">
+            <label for="sync-code-input">Código de sesión</label>
+            <input id="sync-code-input" type="text" placeholder="Pega el código del Emisor aquí…" autocomplete="off" spellcheck="false" />
+          </div>
+          <button id="btn-sync-connect" class="btn btn--primary btn--full" onclick="syncConnect()">
+            <i data-lucide="link"></i> Conectar
+          </button>
+        </div>
+
+        <div id="sync-active-section" style="display:none;margin-top:12px">
+          <div id="sync-code-display" class="sync-code-display"></div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn--sm btn--ghost btn--full" onclick="syncCopyCode()"><i data-lucide="copy"></i> Copiar código</button>
+            <button class="btn btn--sm btn--danger btn--full" onclick="syncDisconnect()"><i data-lucide="x-circle"></i> Desconectar</button>
+          </div>
+        </div>
+
+        <div id="sync-status-bar" class="sync-status-bar sync-status--idle">
+          <span class="sync-status-dot"></span>
+          <span id="sync-status-text">Selecciona un modo para comenzar</span>
+        </div>
+      </div>
+
+      <div id="sync-emisor-card" class="card" style="display:none">
+        <h2 class="card-title"><i data-lucide="send"></i> Controles Emisor</h2>
+        <label class="sync-auto-label">
+          <input type="checkbox" id="sync-auto-toggle" onchange="State.syncAutoSend = this.checked" />
+          Auto-enviar al escanear
+        </label>
+        <button id="btn-sync-send-last" class="btn btn--primary btn--full" style="margin-top:10px" onclick="syncSendLast()" disabled>
+          <i data-lucide="wifi"></i> Enviar última lectura
+        </button>
+        <div id="sync-last-sent-info" class="sync-last-sent" style="display:none"></div>
+      </div>
+
+      <div id="sync-receptor-card" class="card" style="display:none">
+        <h2 class="card-title">
+          <i data-lucide="monitor"></i> Lecturas recibidas
+          <span id="sync-feed-count" class="notify-badge" style="display:none">0</span>
+        </h2>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+          <button class="btn btn--sm btn--ghost" onclick="syncClearFeed()"><i data-lucide="trash-2"></i> Limpiar</button>
+        </div>
+        <div id="sync-live-feed">
+          <p class="empty-state">Esperando lecturas del Emisor…</p>
+        </div>
       </div>
     </section>
 
