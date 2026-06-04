@@ -385,10 +385,10 @@
       <div class="card" id="rfid-kbd-card" style="border-color:rgba(234,179,8,0.4);background:linear-gradient(135deg,rgba(234,179,8,0.07),rgba(234,179,8,0.02))">
         <h2 class="card-title" style="color:#eab308"><i data-lucide="keyboard"></i> Modo Scanner de Teclado</h2>
         <p class="card-desc">
-          Tu lector aparece como <strong>"Scanner KBD / BT Keyboard"</strong> — esto significa que funciona como un
-          <strong>teclado Bluetooth HID</strong>. <br>
-          <strong>Pasos:</strong> 1) Empareja el lector en Bluetooth del sistema (Windows/Android como teclado).
-          2) Activa este modo. 3) Escanea un chip — el ID se captura automáticamente.
+          Si tu lector actúa como <strong>Teclado Bluetooth HID</strong> (emulado):
+          1) Empareja el lector en el sistema (BT Settings).
+          2) Activa este modo.
+          3) Escanea un chip.
         </p>
 
         <div id="rfid-kbd-off">
@@ -412,7 +412,7 @@
 
           <div class="rfid-kbd-active-banner">
             <span class="rfid-kbd-dot"></span>
-            <span>Modo activo — enfocado y capturando. Escanea un chip con el lector.</span>
+            <span>Modo activo — captura iniciada.</span>
           </div>
 
           <div id="rfid-kbd-last" class="rfid-kbd-last" style="display:none">
@@ -421,7 +421,7 @@
 
           <div style="display:flex;gap:8px;margin-top:10px">
             <button class="btn btn--ghost btn--sm btn--full" onclick="rfidKbdFocus()">
-              <i data-lucide="crosshair"></i> Re-enfocar captura
+              <i data-lucide="crosshair"></i> Re-enfocar
             </button>
             <button class="btn btn--sm btn--danger" onclick="rfidKbdDeactivate()">
               <i data-lucide="x-circle"></i> Desactivar
@@ -429,6 +429,57 @@
           </div>
         </div>
       </div>
+
+      <!-- ── WebHID API (lector HID directo sin emparejar) ── -->
+      <div class="card" id="rfid-webhid-card" style="border-color:rgba(99,102,241,0.4);background:linear-gradient(135deg,rgba(99,102,241,0.07),rgba(99,102,241,0.02))">
+        <h2 class="card-title" style="color:#818cf8"><i data-lucide="usb"></i> WebHID — Conexión directa al lector</h2>
+        <p class="card-desc">
+          <strong>WebHID API</strong> permite conectar el lector directamente desde el navegador,
+          <em>sin necesidad de emparejarlo en el sistema operativo</em>. Selecciona tu lector en el diálogo
+          y los chips se capturarán automáticamente.<br>
+          <span style="color:var(--warning)">⚠️ Requiere Chrome/Edge 89+. El lector debe estar encendido y en modo BT.</span>
+        </p>
+
+        <div id="rfid-webhid-off">
+          <button id="btn-webhid-connect" class="btn btn--full" onclick="rfidWebHIDConnect()"
+            style="background:linear-gradient(135deg,#818cf8,#6366f1);color:#fff;font-weight:700;border:none">
+            <i data-lucide="usb"></i> Conectar lector via WebHID
+          </button>
+          <div id="rfid-webhid-nosupport" style="display:none;margin-top:8px;padding:8px 12px;background:var(--danger-dim);border:1px solid var(--danger);border-radius:var(--r-sm);font-size:0.8rem;color:var(--danger)">
+            ⚠️ Tu navegador no soporta WebHID. Usa Chrome o Edge 89+.
+          </div>
+        </div>
+
+        <div id="rfid-webhid-on" style="display:none">
+          <div class="rfid-kbd-active-banner" style="background:rgba(99,102,241,0.12);border-color:rgba(99,102,241,0.5);color:#818cf8">
+            <span class="rfid-kbd-dot" style="background:#818cf8;box-shadow:0 0 8px #818cf8"></span>
+            <span id="rfid-webhid-device-name">Lector HID conectado</span>
+          </div>
+          <div id="rfid-webhid-last" class="rfid-kbd-last" style="display:none">
+            <span id="rfid-webhid-last-text"></span>
+          </div>
+          <button class="btn btn--sm btn--danger btn--full" style="margin-top:10px" onclick="rfidWebHIDDisconnect()">
+            <i data-lucide="x-circle"></i> Desconectar WebHID
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Guía nRF Connect ──────────────────────────────── -->
+      <details class="advanced-opts" style="border-color:rgba(56,189,248,0.25);margin-bottom:12px">
+        <summary style="color:var(--accent)">💡 ¿Cómo encontrar el UUID del lector con nRF Connect?</summary>
+        <div style="margin-top:10px;font-size:0.82rem;color:var(--text-secondary);line-height:1.6">
+          <ol style="padding-left:18px;display:flex;flex-direction:column;gap:6px">
+            <li>Instala <strong>nRF Connect for Mobile</strong> (Android) o <strong>nRF Connect for Desktop</strong> (Windows).</li>
+            <li>Enciende el lector y selecciona <strong>"BT Connect"</strong> en su menú.</li>
+            <li>En nRF Connect → escanea → conecta al dispositivo.</li>
+            <li>Ve a la pestaña <strong>"Services"</strong> — anota el UUID del servicio que tiene características <code>Notify</code> o <code>Indicate</code>.</li>
+            <li>Pega ese UUID en el campo <strong>"UUID de servicio"</strong> de la sección Bluetooth de arriba y conecta.</li>
+          </ol>
+          <div style="margin-top:10px;padding:8px 12px;background:var(--accent-dim);border-radius:var(--r-sm);font-size:0.8rem;color:var(--accent)">
+            💡 UUIDs comunes en lectores ganaderos: <code>FFE0</code>, <code>6E400001</code> (Nordic UART), <code>FFF0</code>
+          </div>
+        </div>
+      </details>
 
       <!-- Simulador -->
       <div class="sim-card">

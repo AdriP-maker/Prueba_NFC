@@ -2209,6 +2209,165 @@ function rfidUpdateLiveDisplay(parsed) {
   if (syncActions) syncActions.style.display = '';
 }
 
+// ── WebHID API — Lector RFID/Scanner HID ─────────────────
+// Permite conectar directamente un lector que actúa como
+// dispositivo HID (teclado/scanner) desde el navegador.
+// Chrome 89+ / Edge 89+ — sin emparejar en el SO.
+// ──────────────────────────────────────────────────────────
+
+const rfidWebHIDState = {
+  device:  null,
+  buffer:  '',
+  timer:   null,
+  interKeyTimeout: 200,
+};
+
+// Mapa de HID keycodes (Usage IDs del teclado HID) → caracteres
+const HID_KEYMAP = {
+  0x04:'a',0x05:'b',0x06:'c',0x07:'d',0x08:'e',0x09:'f',
+  0x0a:'g',0x0b:'h',0x0c:'i',0x0d:'j',0x0e:'k',0x0f:'l',
+  0x10:'m',0x11:'n',0x12:'o',0x13:'p',0x14:'q',0x15:'r',
+  0x16:'s',0x17:'t',0x18:'u',0x19:'v',0x1a:'w',0x1b:'x',
+  0x1c:'y',0x1d:'z',
+  0x1e:'1',0x1f:'2',0x20:'3',0x21:'4',0x22:'5',
+  0x23:'6',0x24:'7',0x25:'8',0x26:'9',0x27:'0',
+  0x28:'\n', // Enter
+  0x2c:' ', // Space
+  0x2d:'-',0x2e:'=',0x2f:'[',0x30:']',0x31:'\\',
+  0x33:';',0x34:"'",0x35:'`',0x36:',',0x37:'.',0x38:'/',
+  // Teclado numérico
+  0x59:'1',0x5a:'2',0x5b:'3',0x5c:'4',0x5d:'5',
+  0x5e:'6',0x5f:'7',0x60:'8',0x61:'9',0x62:'0',
+  0x63:'\n', // Numpad Enter
+};
+
+async function rfidWebHIDConnect() {
+  if (!('hid' in navigator)) {
+    document.getElementById('rfid-webhid-nosupport').style.display = '';
+    showToast('WebHID no disponible. Usa Chrome/Edge 89+.', 'error');
+    return;
+  }
+
+  try {
+    // Pedir al usuario que seleccione cualquier dispositivo HID
+    const devices = await navigator.hid.requestDevice({ filters: [] });
+    if (!devices || !devices.length) {
+      showToast('No se seleccionó ningún dispositivo.', '');
+      return;
+    }
+
+    const device = devices[0];
+    rfidWebHIDState.device = device;
+    rfidWebHIDState.buffer = '';
+
+    if (!device.opened) {
+      await device.open();
+    }
+
+    device.addEventListener('inputreport', rfidWebHIDOnReport);
+    device.addEventListener('disconnect', rfidWebHIDOnDisconnect);
+
+    // Actualizar UI
+    document.getElementById('rfid-webhid-off').style.display = 'none';
+    document.getElementById('rfid-webhid-on').style.display  = '';
+    document.getElementById('rfid-webhid-device-name').textContent =
+      `✓ ${device.productName || device.vendorId} conectado — Escanea un chip`;
+
+    lucide.createIcons();
+    showToast(`WebHID: ${device.productName || 'Lector'} conectado`, 'success');
+    addToHistory({ type: 'bt-connect', data: `WebHID: ${device.productName || device.vendorId}` });
+
+  } catch (err) {
+    if (err.name !== 'NotAllowedError') {
+      showToast(`Error WebHID: ${err.message}`, 'error');
+    }
+  }
+}
+
+function rfidWebHIDOnReport(event) {
+  // Los scanners HID envían reportes de teclado estándar.
+  // Formato típico: [modifiers, reserved, key1, key2, key3, key4, key5, key6]
+  const data    = new Uint8Array(event.data.buffer);
+  const modifiers = data[0]; // bits: Ctrl, Shift, Alt, etc.
+  const isShift   = !!(modifiers & 0x22); // Left Shift | Right Shift
+
+  for (let i = 2; i < data.length; i++) {
+    const keycode = data[i];
+    if (!keycode) continue; // 0x00 = no key
+
+    if (keycode === 0x28 || keycode === 0x63) {
+      // Enter o Numpad Enter → flush
+      rfidWebHIDFlush();
+      return;
+    }
+
+    let ch = HID_KEYMAP[keycode] || '';
+    if (!ch) continue;
+
+    // Aplicar Shift a letras y números
+    if (isShift) {
+      ch = ch.toUpperCase();
+      // Shift+número → símbolo (para teclados US, los scanners suelen enviar dígitos sin shift)
+    }
+
+    rfidWebHIDState.buffer += ch;
+    clearTimeout(rfidWebHIDState.timer);
+    rfidWebHIDState.timer = setTimeout(rfidWebHIDFlush, rfidWebHIDState.interKeyTimeout);
+  }
+}
+
+function rfidWebHIDFlush() {
+  clearTimeout(rfidWebHIDState.timer);
+  const raw = rfidWebHIDState.buffer.trim();
+  rfidWebHIDState.buffer = '';
+
+  if (!raw) return;
+
+  // Mostrar último
+  const lastEl  = document.getElementById('rfid-webhid-last');
+  const lastTxt = document.getElementById('rfid-webhid-last-text');
+  if (lastEl && lastTxt) {
+    lastTxt.textContent = `Último capturado: ${raw}`;
+    lastEl.style.display = '';
+  }
+
+  const parsed = rfidParseId(raw);
+  rfidAddToSession(parsed);
+  rfidUpdateLiveDisplay(parsed);
+
+  const liveCard  = document.getElementById('rfid-live-card');
+  const liveBadge = document.getElementById('rfid-live-badge');
+  if (liveCard)  liveCard.style.display  = '';
+  if (liveBadge) liveBadge.style.display = '';
+
+  showToast(`📡 WebHID ID: ${parsed.normalized}`, 'success');
+}
+
+async function rfidWebHIDDisconnect() {
+  const dev = rfidWebHIDState.device;
+  if (dev) {
+    try {
+      dev.removeEventListener('inputreport', rfidWebHIDOnReport);
+      if (dev.opened) await dev.close();
+    } catch {}
+    rfidWebHIDState.device = null;
+    rfidWebHIDState.buffer = '';
+  }
+
+  document.getElementById('rfid-webhid-off').style.display = '';
+  document.getElementById('rfid-webhid-on').style.display  = 'none';
+  lucide.createIcons();
+  showToast('WebHID desconectado.');
+}
+
+function rfidWebHIDOnDisconnect() {
+  rfidWebHIDState.device = null;
+  document.getElementById('rfid-webhid-off').style.display = '';
+  document.getElementById('rfid-webhid-on').style.display  = 'none';
+  lucide.createIcons();
+  showToast('Lector WebHID desconectado.', 'error');
+}
+
 // ── MODO SCANNER DE TECLADO (HID) ────────────────────────
 // Para lectores ganaderos que aparecen como "Scanner KBD" /
 // "BT Keyboard" (perfil HID): el SO los ve como teclado.
