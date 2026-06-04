@@ -573,6 +573,36 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('record-type').addEventListener('change', onRecordTypeChange);
   document.getElementById('bt-accept-all').addEventListener('change', onBtAcceptAllChange);
   syncInit();
+
+  // ── Modo Scanner de Teclado HID ───────────────────────
+  // El campo trampa puede no existir aún en el DOM si el HTML
+  // carga dinámicamente, por lo que usamos delegación en document.
+  document.addEventListener('keydown', (e) => {
+    if (!rfidKbdState.active) return;
+    // Si el foco está en otro input/textarea (que no sea el trap), ignorar
+    const focused = document.activeElement;
+    const trapEl  = document.getElementById('rfid-kbd-trap');
+    if (focused && focused !== trapEl &&
+        (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA' || focused.tagName === 'SELECT')) {
+      return;
+    }
+    rfidKbdHandleInput(e);
+  });
+
+  // Cuando el campo trampa pierde el foco, volver a enfocarlo (salvo que se haga clic en otro input)
+  document.addEventListener('focusout', (e) => {
+    if (!rfidKbdState.active) return;
+    const trap = document.getElementById('rfid-kbd-trap');
+    if (!trap) return;
+    // Esperar un tick para ver a dónde va el foco
+    setTimeout(() => {
+      const nf = document.activeElement;
+      if (nf === trap) return; // Ya volvió
+      if (nf && (nf.tagName === 'INPUT' || nf.tagName === 'TEXTAREA' ||
+                 nf.tagName === 'SELECT' || nf.tagName === 'BUTTON')) return; // Dejarlo
+      trap.focus();
+    }, 50);
+  });
 });
 
 function populatePresetSelect() {
@@ -2177,6 +2207,118 @@ function rfidUpdateLiveDisplay(parsed) {
   detail.style.display = '';
   const syncActions = document.getElementById('rfid-sync-actions');
   if (syncActions) syncActions.style.display = '';
+}
+
+// ── MODO SCANNER DE TECLADO (HID) ────────────────────────
+// Para lectores ganaderos que aparecen como "Scanner KBD" /
+// "BT Keyboard" (perfil HID): el SO los ve como teclado.
+// La Web Bluetooth API NO puede acceder a dispositivos HID,
+// pero sí podemos capturar las teclas que el lector "escribe".
+// ──────────────────────────────────────────────────────────
+
+const rfidKbdState = {
+  active:  false,
+  buffer:  '',
+  timer:   null,
+  // Tiempo máximo entre teclas antes de considerar el ID completo (ms)
+  // Los lectores rápidos terminan con Enter/Tab, pero por si acaso
+  interKeyTimeout: 200,
+};
+
+function rfidKbdActivate() {
+  rfidKbdState.active = true;
+  rfidKbdState.buffer = '';
+
+  document.getElementById('rfid-kbd-off').style.display = 'none';
+  document.getElementById('rfid-kbd-on').style.display  = '';
+
+  // Activar la pestaña RFID si no está activa
+  switchTab('rfid');
+
+  rfidKbdFocus();
+  lucide.createIcons();
+  showToast('Modo Scanner Teclado activo. Escanea un chip con el lector.', 'success');
+}
+
+function rfidKbdDeactivate() {
+  rfidKbdState.active = false;
+  rfidKbdState.buffer = '';
+  clearTimeout(rfidKbdState.timer);
+
+  document.getElementById('rfid-kbd-off').style.display = '';
+  document.getElementById('rfid-kbd-on').style.display  = 'none';
+  lucide.createIcons();
+  showToast('Modo Scanner Teclado desactivado.');
+}
+
+function rfidKbdFocus() {
+  const trap = document.getElementById('rfid-kbd-trap');
+  if (trap) {
+    trap.value = '';
+    trap.focus();
+  }
+}
+
+// Manejador del campo trampa
+function rfidKbdHandleInput(event) {
+  if (!rfidKbdState.active) return;
+
+  const key = event.key;
+
+  // Ignorar teclas de control que no sean terminadores
+  const ignored = ['Shift','Control','Alt','Meta','CapsLock','Tab',
+                   'ArrowUp','ArrowDown','ArrowLeft','ArrowRight',
+                   'Home','End','PageUp','PageDown','Insert','Delete',
+                   'F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'];
+  if (ignored.includes(key)) return;
+
+  // Enter, Tab, o retorno de carro: el scanner terminó de enviar el ID
+  if (key === 'Enter' || key === '\r' || key === '\n') {
+    event.preventDefault();
+    rfidKbdFlush();
+    return;
+  }
+
+  // Acumular carácter
+  if (key.length === 1) {
+    event.preventDefault();
+    rfidKbdState.buffer += key;
+    // Limpiar timer previo (si el scanner no envía Enter)
+    clearTimeout(rfidKbdState.timer);
+    rfidKbdState.timer = setTimeout(rfidKbdFlush, rfidKbdState.interKeyTimeout);
+  }
+}
+
+function rfidKbdFlush() {
+  clearTimeout(rfidKbdState.timer);
+  const raw = rfidKbdState.buffer.trim();
+  rfidKbdState.buffer = '';
+
+  // Limpiar el campo trampa
+  const trap = document.getElementById('rfid-kbd-trap');
+  if (trap) { trap.value = ''; trap.focus(); }
+
+  if (!raw) return;
+
+  // Mostrar último valor capturado
+  const lastEl = document.getElementById('rfid-kbd-last');
+  const lastTxt = document.getElementById('rfid-kbd-last-text');
+  if (lastEl && lastTxt) {
+    lastTxt.textContent = `Último capturado: ${raw}`;
+    lastEl.style.display = '';
+  }
+
+  const parsed = rfidParseId(raw);
+  rfidAddToSession(parsed);
+  rfidUpdateLiveDisplay(parsed);
+
+  // Asegurar que la live card esté visible
+  const liveCard = document.getElementById('rfid-live-card');
+  if (liveCard) liveCard.style.display = '';
+  const liveBadge = document.getElementById('rfid-live-badge');
+  if (liveBadge) liveBadge.style.display = '';
+
+  showToast(`📡 ID capturado: ${parsed.normalized}`, 'success');
 }
 
 // ══════════════════════════════════════════════════════

@@ -381,6 +381,55 @@
         <div id="rfid-expected-count" class="rfid-expected-info" style="display:none"></div>
       </div>
 
+      <!-- ── MODO SCANNER DE TECLADO (HID) ──────────────── -->
+      <div class="card" id="rfid-kbd-card" style="border-color:rgba(234,179,8,0.4);background:linear-gradient(135deg,rgba(234,179,8,0.07),rgba(234,179,8,0.02))">
+        <h2 class="card-title" style="color:#eab308"><i data-lucide="keyboard"></i> Modo Scanner de Teclado</h2>
+        <p class="card-desc">
+          Tu lector aparece como <strong>"Scanner KBD / BT Keyboard"</strong> — esto significa que funciona como un
+          <strong>teclado Bluetooth HID</strong>. <br>
+          <strong>Pasos:</strong> 1) Empareja el lector en Bluetooth del sistema (Windows/Android como teclado).
+          2) Activa este modo. 3) Escanea un chip — el ID se captura automáticamente.
+        </p>
+
+        <div id="rfid-kbd-off">
+          <button id="btn-kbd-mode" class="btn btn--full" onclick="rfidKbdActivate()"
+            style="background:linear-gradient(135deg,#eab308,#ca8a04);color:#000;font-weight:700;border:none">
+            <i data-lucide="keyboard"></i> Activar Modo Scanner de Teclado
+          </button>
+        </div>
+
+        <div id="rfid-kbd-on" style="display:none">
+          <!-- Campo trampa invisible que mantiene el foco -->
+          <input id="rfid-kbd-trap"
+            type="text"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-label="Campo de captura del scanner de teclado"
+            style="position:fixed;top:-9999px;left:-9999px;opacity:0;width:1px;height:1px;border:none;outline:none"
+          />
+
+          <div class="rfid-kbd-active-banner">
+            <span class="rfid-kbd-dot"></span>
+            <span>Modo activo — enfocado y capturando. Escanea un chip con el lector.</span>
+          </div>
+
+          <div id="rfid-kbd-last" class="rfid-kbd-last" style="display:none">
+            <span id="rfid-kbd-last-text"></span>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="btn btn--ghost btn--sm btn--full" onclick="rfidKbdFocus()">
+              <i data-lucide="crosshair"></i> Re-enfocar captura
+            </button>
+            <button class="btn btn--sm btn--danger" onclick="rfidKbdDeactivate()">
+              <i data-lucide="x-circle"></i> Desactivar
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Simulador -->
       <div class="sim-card">
         <div class="sim-header"><i data-lucide="flask-conical"></i> Simulador RFID (sin hardware)</div>
