@@ -1,6 +1,6 @@
 # NFC · RFID · Bluetooth Toolkit
 
-Versión extendida del proyecto original [Prueba_NFC](https://github.com/AdriP-maker/Prueba_NFC.git) con soporte completo de **Web Bluetooth API**.
+Versión extendida del proyecto original [Conect_Web_NFC](https://github.com/AdriP-maker/Prueba_NFC.git) con soporte completo de **Web Bluetooth API**.
 
 ## Nuevas funcionalidades Bluetooth
 
